@@ -1,0 +1,108 @@
+[tool.poetry]
+name = "cbfpy"
+version = "0.1.0"
+description = "Python package for using simple control barrier function"
+authors = ["Toshiyuki Oshima <toshiyuki67026@gmail.com>"]
+license = "Apache License 2.0"
+readme = "README.md"
+
+packages = [
+    { include = "cbfpy" },
+    { include = "examples" },
+    { include = "tests" },
+]
+
+# duplicate definition with tool.poetry for sphinx
+[project]
+name = "cbfpy"
+version = "0.1.0"
+description = "Python package for using simple control barrier function"
+
+[[project.authors]]
+name = "Toshiyuki Oshima"
+
+[tool.poetry.dependencies]
+python = "^3.8.10"
+sympy = "^1.11.1"
+cvxopt = "^1.3.0"
+matplotlib = "^3.6.2"
+
+[tool.poetry.group.dev.dependencies]
+black = "^22.12.0"
+isort = "^5.11.4"
+mypy = "^0.991"
+sphinx = "5.3.0"
+sphinx-rtd-theme = "^1.1.1"
+sphinx-pyproject = "^0.1.0"
+taskipy = "^1.10.3"
+pre-commit = "^2.21.0"
+ruff = "^0.0.213"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.2.0"
+pytest-cov = "^4.0.0"
+coverage = "^7.0.3"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 119
+target-version = ['py38']
+include = '\.pyi?$'
+# automatically ignore files in .gitignore
+extend-exclude = '''
+(
+    \.git
+    | \.vscode
+    | assets
+)
+'''
+
+[tool.isort]
+profile = "black"
+src_paths = ["cbfpy", "examples", "tests"]
+line_length = 119
+# ignore files in .gitignore
+skip_gitignore = true
+
+[tool.ruff]
+line-length = 119
+select = ["E", "F"]
+ignore = ["E402", "F841"]
+# automatically ignore files in .gitignore
+exclude = [".git", ".vscode", "assets"]
+
+[tool.mypy]
+python_version = 3.8
+plugins = "numpy.typing.mypy_plugin"
+strict = true
+ignore_missing_imports = true
+disallow_any_generics = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=cbfpy --cov-branch --cov-report xml --cov-report html:cov_html"
+
+[tool.sphinx-pyproject]
+project = "cbfpy"
+copyright = "2022, Toshiyuki Oshima"
+language = "en"
+package_root = "cbfpy"
+html_theme = "sphinx_rtd_theme"
+todo_include_todos = true
+templates_path = ["_templates"]
+html_static_path = ["_static"]
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.todo",
+    "sphinx.ext.napoleon",
+]
+
+[tool.taskipy.tasks]
+test = "pytest"
+fmt = "isort . && black ."
+lint = "black --check . && ruff . && mypy ."
+docs = "sphinx-apidoc -F -o docs/source cbfpy && sphinx-build docs/source docs/build"

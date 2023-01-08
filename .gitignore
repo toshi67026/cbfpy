@@ -1,0 +1,13 @@
+*__pycache__
+*.pyc
+.mypy_cache
+.pytest_cache
+/docs/source/*
+/docs/build/*
+!/docs/source/conf.py
+.coverage
+coverage.xml
+cov_html
+.ruff_cache
+.venv
+dist

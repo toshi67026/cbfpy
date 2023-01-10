@@ -21,6 +21,6 @@ repos:
       - id: black
         language_version: python3
   - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: "v0.0.191"
+    rev: "v0.0.221"
     hooks:
       - id: ruff

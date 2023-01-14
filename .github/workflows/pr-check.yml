@@ -9,10 +9,7 @@ on:
       - "examples/**.py"
       - "tests/**.py"
       - "poetry.lock"
-      - ".github/workflows/ci.yml"
-  push:
-    branches:
-      - main
+      - ".github/workflows/pr-check.yml"
 
 env:
   PYTHON_VERSION: 3.8

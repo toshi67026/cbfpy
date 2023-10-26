@@ -5,7 +5,7 @@ from typing import Tuple, cast
 
 import numpy as np
 from numpy.typing import NDArray
-from sympy import FunctionClass, Symbol, cos, lambdify, sin, sqrt
+from sympy import Matrix, Symbol, cos, lambdify, sin, sqrt, symbols
 
 
 @dataclass
@@ -86,8 +86,8 @@ class ScalarCBF(CBFBase):
         self.keep_upper = keep_upper
 
         cbf = self.sign * (self.x - self.limit)
-        self._calc_dhdx: FunctionClass = lambdify([self.x, self.sign], cbf.diff(self.x))
-        self._calc_h: FunctionClass = lambdify([self.x, self.sign], cbf)
+        self._calc_dhdx = lambdify([self.x, self.sign], cbf.diff(self.x))
+        self._calc_h = lambdify([self.x, self.sign], cbf)
 
     def get_parameters(self) -> Tuple[float, bool]:
         return self.limit, self.keep_upper
@@ -95,8 +95,8 @@ class ScalarCBF(CBFBase):
     def calc_constraints(self, curr_value: float) -> None:
         sign = 1 if self.keep_upper else -1
 
-        self.G = np.array(self._calc_dhdx(curr_value, sign))
-        self.h: float = self._calc_h(curr_value, sign)
+        self.G = self._calc_dhdx(curr_value, sign)
+        self.h = self._calc_h(curr_value, sign)
 
 
 class ScalarRangeCBF(CBFBase):
@@ -126,8 +126,8 @@ class ScalarRangeCBF(CBFBase):
         self.keep_inside = keep_inside
 
         cbf = self.sign * (((self.b - self.a) / 2) ** 2 - (self.x - (self.a + self.b) / 2) ** 2)
-        self._calc_dhdx: FunctionClass = lambdify([self.x, self.sign], cbf.diff(self.x))
-        self._calc_h: FunctionClass = lambdify([self.x, self.sign], cbf)
+        self._calc_dhdx = lambdify([self.x, self.sign], cbf.diff(self.x))
+        self._calc_h = lambdify([self.x, self.sign], cbf)
 
     def get_parameters(self) -> Tuple[float, float, bool]:
         return self.a, self.b, self.keep_inside
@@ -135,8 +135,8 @@ class ScalarRangeCBF(CBFBase):
     def calc_constraints(self, curr_value: float) -> None:
         sign = 1 if self.keep_inside else -1
 
-        self.G = np.array(self._calc_dhdx(curr_value, sign))
-        self.h: float = self._calc_h(curr_value, sign)
+        self.G = self._calc_dhdx(curr_value, sign)
+        self.h = self._calc_h(curr_value, sign)
 
 
 class CircleCBF(CBFBase):
@@ -145,14 +145,14 @@ class CircleCBF(CBFBase):
         center (NDArray): center of circular area in world coordinate. shape=(2,)
         radius (float): radius of the circular area.
         keep_inside (bool): flag to prohibit going outside of the area. Defaults to True.
-        x (List[Symbol]): state variables in symbolic form for cbf
+        x (Matrix): state variables in symbolic form for cbf
         sign (Symbol): symbolic variable for cbf
         G (NDArray): constraint matrix(=dh/dx). shape=(2,)
         h (float): constraint value(=h(x))
     """
 
     def __init__(self) -> None:
-        self.x = [Symbol("x", real=True), Symbol("y", real=True)]  # type: ignore
+        self.x = Matrix(symbols("x, y", real=True))  # type: ignore
         self.sign = Symbol("sign_", real=True)  # type: ignore
 
     def set_parameters(self, center: NDArray, radius: float, keep_inside: bool = True) -> None:
@@ -162,9 +162,9 @@ class CircleCBF(CBFBase):
         self.radius = radius
         self.keep_inside = keep_inside
 
-        cbf = self.sign * (1.0 - sqrt(sum(np.array(self.x) ** 2)))  # type: ignore
-        self._calc_dhdx: FunctionClass = lambdify(self.x + [self.sign], cbf.diff([self.x]))
-        self._calc_h: FunctionClass = lambdify(self.x + [self.sign], cbf)
+        cbf = self.sign * (1.0 - self.x.norm(ord=2))  # type: ignore
+        self._calc_dhdx = lambdify([self.x, self.sign], cbf.diff(self.x))
+        self._calc_h = lambdify([self.x, self.sign], cbf)
 
     def get_parameters(self) -> Tuple[NDArray, float, bool]:
         return self.center, self.radius, self.keep_inside
@@ -180,8 +180,9 @@ class CircleCBF(CBFBase):
         agent_position_transformed = self._transform_agent_position(agent_position.flatten())
         sign = 1 if self.keep_inside else -1
 
-        self.G = np.array(self._calc_dhdx(*agent_position_transformed, sign)) / self.radius
-        self.h: float = self._calc_h(*agent_position_transformed, sign)
+        self.G = self._calc_dhdx(agent_position_transformed, sign) / self.radius
+        assert self.G.shape == (2, 1)
+        self.h = self._calc_h(agent_position_transformed, sign)
 
     def _transform_agent_position(self, agent_position: NDArray) -> NDArray:
         """
@@ -191,7 +192,7 @@ class CircleCBF(CBFBase):
         Returns:
             (NDArray): transformed agent position within unit circle. shape=(2,)
         """
-        return cast(NDArray, (agent_position - self.center) / self.radius)
+        return cast(NDArray, ((agent_position - self.center) / self.radius))
 
 
 class Pnorm2dCBF(CBFBase):
@@ -203,14 +204,14 @@ class Pnorm2dCBF(CBFBase):
         theta (float): rotation angle(rad) world to the area coordinate.
         p (float): multiplier for p-norm.
         keep_inside (bool): flag to prohibit going outside of the area. Defaults to True.
-        x (List[Symbol]): state variables in symbolic form for cbf
+        x (Matrix): state variables in symbolic form for cbf
         sign (Symbol): symbolic variable for cbf
         G (NDArray): constraint matrix(=dh/dx). shape=(2,)
         h (float): constraint value(=h(x))
     """
 
     def __init__(self) -> None:
-        self.x = [Symbol("x", real=True), Symbol("y", real=True)]  # type: ignore
+        self.x = Matrix(symbols("x, y", real=True))  # type: ignore
         self.sign = Symbol("sign_", real=True)  # type: ignore
 
     def set_parameters(
@@ -224,9 +225,10 @@ class Pnorm2dCBF(CBFBase):
         self.p = p
         self.keep_inside = keep_inside
 
-        cbf = self.sign * (1.0 - sum(abs(np.array(self.x)) ** self.p) ** (1 / self.p))
-        self._calc_dhdx: FunctionClass = lambdify(self.x + [self.sign], cbf.diff([self.x]))
-        self._calc_h: FunctionClass = lambdify(self.x + [self.sign], cbf)
+        # applyfunc(lambda x: x**self.p): element-wise power
+        cbf = self.sign * (1.0 - sum(abs(self.x.applyfunc(lambda x: x**self.p))) ** (1 / self.p))  # type: ignore
+        self._calc_dhdx = lambdify([self.x, self.sign], cbf.diff(self.x))
+        self._calc_h = lambdify([self.x, self.sign], cbf)
 
     def get_parameters(self) -> Tuple[NDArray, NDArray, float, float, bool]:
         """
@@ -247,8 +249,9 @@ class Pnorm2dCBF(CBFBase):
         sign = 1 if self.keep_inside else -1
         rotation_matrix = self._get_rotation_matrix(self.theta)
 
-        self.G = rotation_matrix @ np.array(self._calc_dhdx(*agent_position_transformed, sign)) / self.width
-        self.h: float = self._calc_h(*agent_position_transformed, sign)
+        self.G = rotation_matrix @ self._calc_dhdx(agent_position_transformed, sign) / self.width.reshape(2, 1)
+        assert self.G.shape == (2, 1)
+        self.h = self._calc_h(agent_position_transformed, sign)
 
     def _transform_agent_position(self, agent_position: NDArray) -> NDArray:
         """
@@ -292,13 +295,13 @@ class LiDARCBF(CBFBase):
         self.width = width.flatten()
         self.keep_upper = keep_upper
 
-        r_c: float = sqrt(sum((self.width * np.array([cos(self.theta), sin(self.theta)])) ** 2))  # type: ignore
+        r_c = sqrt(sum((self.width * np.array([cos(self.theta), sin(self.theta)])) ** 2))  # type: ignore
         cbf = self.r - r_c
-        self._calc_dhdx: FunctionClass = lambdify(
+        self._calc_dhdx = lambdify(
             [self.r, self.theta],
             [cbf.diff(self.r), cbf.diff(self.theta)],
         )
-        self._calc_h: FunctionClass = lambdify([self.r, self.theta], cbf)
+        self._calc_h = lambdify([self.r, self.theta], cbf)
 
     def get_parameters(self) -> Tuple[NDArray, bool]:
         return self.width, self.keep_upper
@@ -310,5 +313,5 @@ class LiDARCBF(CBFBase):
                 [np.sin(theta) / r, -1],
             ]
         )
-        self.G = np.array(self._calc_dhdx(r, theta)) @ g_p
-        self.h: float = self._calc_h(r, theta)
+        self.G = self._calc_dhdx(r, theta) @ g_p
+        self.h = self._calc_h(r, theta)

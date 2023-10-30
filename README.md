@@ -18,6 +18,7 @@ python -m pip install cbfpy --find-links=dist
 
 ## Examples
 <img src=assets/example_circle_cbf.gif width=50%><img src=assets/example_pnorm2d_cbf.gif width=50%>
+<img src=assets/example_unicycle_circle_cbf.gif width=50%><img src=assets/example_unicycle_pnorm2d_cbf.gif width=50%>
 <img src=assets/example_scalar_cbf.gif width=50%><img src=assets/example_scalar_range_cbf.gif width=50%>
 <img src=assets/example_lidar_cbf.gif width=50%>
 

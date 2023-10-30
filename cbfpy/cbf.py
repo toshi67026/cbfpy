@@ -195,6 +195,58 @@ class CircleCBF(CBFBase):
         return cast(NDArray, ((agent_position - self.center) / self.radius))
 
 
+class UnicycleCircleCBF(CircleCBF):
+    def __init__(self) -> None:
+        self.x = Matrix(symbols("x, y, theta", real=True))  # type: ignore
+        self.sign = Symbol("sign_", real=True)  # type: ignore
+
+    def set_parameters(self, center: NDArray, radius: float, keep_inside: bool = True) -> None:
+        """Set parameters and auxiliary functions for constraint calculation"""
+        self.center = center.flatten()
+        assert radius > 0
+        self.radius = radius
+        self.keep_inside = keep_inside
+
+        cbf = self.sign * (1.0 - (np.hstack([np.eye(2), np.zeros([2, 1])]) @ self.x).norm(ord=2))
+        self._calc_dhdx = lambdify([self.x, self.sign], cbf.diff(self.x))
+        self._calc_h = lambdify([self.x, self.sign], cbf)
+
+    def calc_constraints(self, agent_pose: NDArray) -> None:
+        """
+        Args:
+            agent_position (NDArray): agent position in world coordinate. shape=(2,)
+
+        Note:
+            division by radius is a remnant of the transformation
+        """
+        sign = 1 if self.keep_inside else -1
+        agent_pose_transformed = self._transform_agent_pose(agent_pose.flatten())
+
+        theta = agent_pose[2]
+        # system matrix
+        A = np.array(
+            [
+                [np.cos(theta), 0],
+                [0, np.sin(theta)],
+                [0, 1],
+            ]
+        )
+        self.G = ((self._calc_dhdx(agent_pose_transformed, sign) / self.radius).reshape(1, -1) @ A).flatten()
+        assert self.G.shape == (2,)
+        self.h = self._calc_h(agent_pose_transformed, sign)
+
+    def _transform_agent_pose(self, agent_pose: NDArray) -> NDArray:
+        """
+        Args:
+            agent_pose (NDArray): agent pose in world coordinate. shape=(3,)
+
+        Returns:
+            (NDArray): transformed agent pose within unit circle. shape=(3,)
+        """
+        agent_position = agent_pose[0:2]
+        return cast(NDArray, np.append((agent_position - self.center) / self.radius, agent_pose[2]))
+
+
 class Pnorm2dCBF(CBFBase):
     """
     Atrributes:
@@ -274,6 +326,77 @@ class Pnorm2dCBF(CBFBase):
                 [np.sin(rad), np.cos(rad)],
             ]
         )
+
+
+class UnicyclePnorm2dCBF(Pnorm2dCBF):
+    def __init__(self) -> None:
+        self.x = Matrix(symbols("x, y, agent_theta", real=True))  # type: ignore
+        self.sign = Symbol("sign_", real=True)  # type: ignore
+
+    def set_parameters(
+        self, center: NDArray, width: NDArray, theta: float = 0.0, p: float = 2.0, keep_inside: bool = True
+    ) -> None:
+        """Set parameters and auxiliary functions for constraint calculation"""
+        self.center = center.flatten()
+        self.width = width.flatten()
+        self.theta = theta
+        assert p >= 1
+        self.p = p
+        self.keep_inside = keep_inside
+
+        # applyfunc(lambda x: x**self.p): element-wise power
+        cbf = self.sign * (
+            1.0
+            - sum(abs((np.hstack([np.eye(2), np.zeros([2, 1])]) @ self.x).applyfunc(lambda x: x**self.p)))
+            ** (1 / self.p)
+        )
+        self._calc_dhdx = lambdify([self.x, self.sign], cbf.diff(self.x))
+        self._calc_h = lambdify([self.x, self.sign], cbf)
+
+    def calc_constraints(self, agent_pose: NDArray) -> None:
+        """
+        Args:
+            agent_position (NDArray): agent position in world coordinate. shape=(2,)
+
+        Note:
+            division by radius is a remnant of the transformation
+        """
+        agent_pose_transformed = self._transform_agent_pose(agent_pose.flatten())
+        sign = 1 if self.keep_inside else -1
+        rotation_matrix = self._get_rotation_matrix(self.theta)
+
+        agent_theta = agent_pose[2]
+        # system matrix
+        A = np.array(
+            [
+                [np.cos(agent_theta), 0],
+                [0, np.sin(agent_theta)],
+                [0, 1],
+            ]
+        )
+        dhdx = self._calc_dhdx(agent_pose_transformed, sign)
+        assert dhdx.shape == (3, 1), dhdx
+        # assert False, f"{rotation_matrix},\n {dhdx},\n {dhdx[0:2]}"
+        # assert (
+        #     False
+        # ), f"{np.vstack([rotation_matrix @ dhdx[0:2] / self.width.reshape(2, 1), dhdx[2]]).reshape(1, -1) @ A}"
+        self.G = (
+            np.vstack([rotation_matrix @ dhdx[0:2] / self.width.reshape(2, 1), dhdx[2]]).reshape(1, -1) @ A
+        ).flatten()
+        assert self.G.shape == (2,)
+        self.h = self._calc_h(agent_pose_transformed, sign)
+
+    def _transform_agent_pose(self, agent_pose: NDArray) -> NDArray:
+        """
+        Args:
+            agent_pose (NDArray): agent pose in world coordinate. shape=(3,)
+
+        Returns:
+            (NDArray): transformed agent pose within unit circle. shape=(3,)
+        """
+        rotation_matrix = self._get_rotation_matrix(-self.theta)
+        agent_position = agent_pose[0:2]
+        return cast(NDArray, np.append(rotation_matrix @ (agent_position - self.center) / self.width, agent_pose[2]))
 
 
 class LiDARCBF(CBFBase):

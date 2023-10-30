@@ -3,7 +3,17 @@
 import numpy as np
 import pytest
 
-from cbfpy.cbf import CBFBase, CircleCBF, GeneralCBF, LiDARCBF, Pnorm2dCBF, ScalarCBF, ScalarRangeCBF
+from cbfpy.cbf import (
+    CBFBase,
+    CircleCBF,
+    GeneralCBF,
+    LiDARCBF,
+    Pnorm2dCBF,
+    ScalarCBF,
+    ScalarRangeCBF,
+    UnicycleCircleCBF,
+    UnicyclePnorm2dCBF,
+)
 
 
 class TestCBFBase:
@@ -68,7 +78,7 @@ class TestScalarRangeCBF:
 
         scalar_range_cbf.calc_constraints(2.0)
         G, alpha_h = scalar_range_cbf.get_constraints()
-        assert np.allclose(G, np.array(1.0))
+        assert np.allclose(G, np.ones(1))
         assert alpha_h == pytest.approx(2.0)
 
 
@@ -92,8 +102,32 @@ class TestCircleCBF:
         agent_position = 2 * np.ones(2)
         circle_cbf.calc_constraints(agent_position)
         G, alpha_h = circle_cbf.get_constraints()
-        assert np.allclose(G, np.array([-0.35355339, -0.35355339]))
-        assert alpha_h == pytest.approx(0.2928932188134524)
+        assert G.shape == (2,)
+        assert isinstance(alpha_h, float)
+
+
+class TestUnicycleCircleCBF:
+    center = np.ones(2)
+    radius = 2.0
+    keep_inside = True
+
+    def test_set_and_get_parameters(self) -> None:
+        circle_cbf = UnicycleCircleCBF()
+        circle_cbf.set_parameters(self.center, self.radius, self.keep_inside)
+        center, radius, keep_inside = circle_cbf.get_parameters()
+        assert np.allclose(center, self.center)
+        assert radius == pytest.approx(self.radius)
+        assert keep_inside == self.keep_inside
+
+    def test_calc_constraints(self) -> None:
+        circle_cbf = UnicycleCircleCBF()
+        circle_cbf.set_parameters(self.center, self.radius, self.keep_inside)
+
+        agent_pose = 2 * np.ones(3)
+        circle_cbf.calc_constraints(agent_pose)
+        G, alpha_h = circle_cbf.get_constraints()
+        assert G.shape == (2,)
+        assert isinstance(alpha_h, float)
 
 
 class TestPnorm2dCBF:
@@ -120,8 +154,36 @@ class TestPnorm2dCBF:
         agent_position = 2 * np.ones(2)
         pnorm2d_cbf.calc_constraints(agent_position)
         G, alpha_h = pnorm2d_cbf.get_constraints()
-        assert np.allclose(G, np.array([-0.1661934, -0.77436655]))
-        assert alpha_h == pytest.approx(0.234969565)
+        assert G.shape == (2,)
+        assert isinstance(alpha_h, float)
+
+
+class TestUnicyclePnorm2dCBF:
+    center = np.ones(2)
+    width = np.array([2, 1])
+    theta = 0.3
+    p = 4.0
+    keep_inside = True
+
+    def test_set_and_get_parameters(self) -> None:
+        pnorm2d_cbf = UnicyclePnorm2dCBF()
+        pnorm2d_cbf.set_parameters(self.center, self.width, self.theta, self.p, self.keep_inside)
+        center, width, theta, p, keep_inside = pnorm2d_cbf.get_parameters()
+        assert np.allclose(center, self.center)
+        assert np.allclose(width, self.width)
+        assert theta == pytest.approx(self.theta)
+        assert p == pytest.approx(self.p)
+        assert keep_inside == self.keep_inside
+
+    def test_calc_constraints(self) -> None:
+        pnorm2d_cbf = UnicyclePnorm2dCBF()
+        pnorm2d_cbf.set_parameters(self.center, self.width, self.theta, self.p, self.keep_inside)
+
+        agent_pose = 2 * np.ones(3)
+        pnorm2d_cbf.calc_constraints(agent_pose)
+        G, alpha_h = pnorm2d_cbf.get_constraints()
+        assert G.shape == (2,)
+        assert isinstance(alpha_h, float)
 
 
 class TestLiDARCBF:

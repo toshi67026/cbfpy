@@ -180,8 +180,8 @@ class CircleCBF(CBFBase):
         agent_position_transformed = self._transform_agent_position(agent_position.flatten())
         sign = 1 if self.keep_inside else -1
 
-        self.G = self._calc_dhdx(agent_position_transformed, sign) / self.radius
-        assert self.G.shape == (2, 1)
+        self.G = (self._calc_dhdx(agent_position_transformed, sign) / self.radius).flatten()
+        assert self.G.shape == (2,)
         self.h = self._calc_h(agent_position_transformed, sign)
 
     def _transform_agent_position(self, agent_position: NDArray) -> NDArray:
@@ -249,8 +249,10 @@ class Pnorm2dCBF(CBFBase):
         sign = 1 if self.keep_inside else -1
         rotation_matrix = self._get_rotation_matrix(self.theta)
 
-        self.G = rotation_matrix @ self._calc_dhdx(agent_position_transformed, sign) / self.width.reshape(2, 1)
-        assert self.G.shape == (2, 1)
+        self.G = (
+            rotation_matrix @ self._calc_dhdx(agent_position_transformed, sign) / self.width.reshape(2, 1)
+        ).flatten()
+        assert self.G.shape == (2,)
         self.h = self._calc_h(agent_position_transformed, sign)
 
     def _transform_agent_position(self, agent_position: NDArray) -> NDArray:
@@ -314,4 +316,5 @@ class LiDARCBF(CBFBase):
             ]
         )
         self.G = self._calc_dhdx(r, theta) @ g_p
+        assert self.G.shape == (2,)
         self.h = self._calc_h(r, theta)

@@ -227,7 +227,7 @@ class UnicycleCircleCBF(CircleCBF):
         A = np.array(
             [
                 [np.cos(theta), 0],
-                [0, np.sin(theta)],
+                [np.sin(theta), 0],
                 [0, 1],
             ]
         )
@@ -370,7 +370,7 @@ class UnicyclePnorm2dCBF(Pnorm2dCBF):
         A = np.array(
             [
                 [np.cos(agent_theta), 0],
-                [0, np.sin(agent_theta)],
+                [np.sin(agent_theta), 0],
                 [0, 1],
             ]
         )

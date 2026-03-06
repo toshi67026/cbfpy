@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from typing import List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,10 +24,10 @@ class CBFOptimizer:
     ) -> None:
         self.pnorm2d_cbf.set_parameters(center, width, theta, p, keep_inside)
 
-    def get_parameters(self) -> Tuple[NDArray, NDArray, float, float, bool]:
+    def get_parameters(self) -> tuple[NDArray, NDArray, float, float, bool]:
         return self.pnorm2d_cbf.get_parameters()
 
-    def optimize(self, nominal_input: NDArray, agent_position: NDArray) -> Tuple[str, NDArray]:
+    def optimize(self, nominal_input: NDArray, agent_position: NDArray) -> tuple[str, NDArray]:
         self.pnorm2d_cbf.calc_constraints(agent_position)
         G, alpha_h = self.pnorm2d_cbf.get_constraints()
         return self.qp_nom_solver.optimize(nominal_input, self.P, [G], [alpha_h])
@@ -45,7 +44,7 @@ def main() -> None:
     optimizer = CBFOptimizer(center, width, theta, p, keep_inside)
 
     initial_position = np.array([-3, -2.5])
-    agent_position_list: List[NDArray] = [initial_position]
+    agent_position_list: list[NDArray] = [initial_position]
     dt = 0.1
     nominal_input = np.ones(2)
 
@@ -53,7 +52,7 @@ def main() -> None:
 
     def update(
         frame: int,
-        agent_position_list: List[NDArray],
+        agent_position_list: list[NDArray],
     ) -> None:
         ax.cla()
 

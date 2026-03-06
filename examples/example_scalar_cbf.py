@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from typing import List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,10 +19,10 @@ class CBFOptimizer:
     def set_parameters(self, limit: float, keep_upper: bool = True) -> None:
         self.scalar_cbf.set_parameters(limit, keep_upper)
 
-    def get_parameters(self) -> Tuple[float, bool]:
+    def get_parameters(self) -> tuple[float, bool]:
         return self.scalar_cbf.get_parameters()
 
-    def optimize(self, nominal_input: float, curr_value: float) -> Tuple[str, NDArray]:
+    def optimize(self, nominal_input: float, curr_value: float) -> tuple[str, NDArray]:
         self.scalar_cbf.calc_constraints(curr_value)
         G, alpha_h = self.scalar_cbf.get_constraints()
         return self.qp_nom_solver.optimize(np.array(nominal_input), self.P, [G], [alpha_h])
@@ -33,16 +32,16 @@ def main() -> None:
     optimizer = CBFOptimizer(limit=0.0)
 
     initial_value = 0.0
-    value_list: List[float] = [initial_value]
-    time_list: List[float] = [0.0]
+    value_list: list[float] = [initial_value]
+    time_list: list[float] = [0.0]
     dt = 0.1
 
     fig, ax = plt.subplots()
 
     def update(
         frame: int,
-        value_list: List[float],
-        time_list: List[float],
+        value_list: list[float],
+        time_list: list[float],
     ) -> None:
         ax.cla()
 

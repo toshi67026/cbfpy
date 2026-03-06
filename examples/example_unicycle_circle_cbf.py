@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from typing import List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,10 +20,10 @@ class CBFOptimizer:
     def set_parameters(self, center: NDArray, radius: float = 1.0, keep_inside: bool = True) -> None:
         self.circle_cbf.set_parameters(center, radius, keep_inside)
 
-    def get_parameters(self) -> Tuple[NDArray, float, bool]:
+    def get_parameters(self) -> tuple[NDArray, float, bool]:
         return self.circle_cbf.get_parameters()
 
-    def optimize(self, nominal_input: NDArray, agent_pose: NDArray) -> Tuple[str, NDArray]:
+    def optimize(self, nominal_input: NDArray, agent_pose: NDArray) -> tuple[str, NDArray]:
         self.circle_cbf.calc_constraints(agent_pose)
         G, alpha_h = self.circle_cbf.get_constraints()
         return self.qp_nom_solver.optimize(nominal_input, self.P, [G], [alpha_h])
@@ -38,14 +37,14 @@ def main() -> None:
     optimizer = CBFOptimizer(center, radius, keep_inside)
 
     initial_pose_array = np.array([0, 0.5, 0.0])
-    agent_pose_list: List[NDArray] = [initial_pose_array]
+    agent_pose_list: list[NDArray] = [initial_pose_array]
     dt = 0.1
 
     fig, ax = plt.subplots()
 
     def update(
         frame: int,
-        agent_pose_list: List[NDArray],
+        agent_pose_list: list[NDArray],
     ) -> None:
         ax.cla()
 

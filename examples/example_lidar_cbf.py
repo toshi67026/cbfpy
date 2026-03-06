@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 from abc import abstractmethod
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import List, Sequence, Tuple, cast
+from typing import cast
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -26,12 +27,12 @@ class CBFOptimizer:
         for lidar_cbf in self.lidar_cbf_list:
             lidar_cbf.set_parameters(width, keep_upper)
 
-    def get_parameters(self) -> List[Tuple[NDArray, bool]]:
+    def get_parameters(self) -> list[tuple[NDArray, bool]]:
         return [lidar_cbf.get_parameters() for lidar_cbf in self.lidar_cbf_list]
 
-    def optimize(self, nominal_input: NDArray, r: NDArray, theta: NDArray) -> Tuple[str, NDArray]:
-        G_list: List[NDArray] = []
-        alpha_h_list: List[float] = []
+    def optimize(self, nominal_input: NDArray, r: NDArray, theta: NDArray) -> tuple[str, NDArray]:
+        G_list: list[NDArray] = []
+        alpha_h_list: list[float] = []
         for i, lidar_cbf in enumerate(self.lidar_cbf_list):
             lidar_cbf.calc_constraints(r[i], theta[i])
             G, alpha_h = lidar_cbf.get_constraints()
@@ -43,12 +44,10 @@ class CBFOptimizer:
 
 class Obstacle:
     @abstractmethod
-    def is_inner(self, r: float, theta: float, curr_pose: NDArray) -> bool:
-        ...
+    def is_inner(self, r: float, theta: float, curr_pose: NDArray) -> bool: ...
 
     @abstractmethod
-    def plot_func(self, color: str, alpha: float) -> patches.Patch:
-        ...
+    def plot_func(self, color: str, alpha: float) -> patches.Patch: ...
 
 
 @dataclass
@@ -127,7 +126,7 @@ class LiDARSimulator:
         self.range_step_num = range_step_num
         self.obstacle_list = obstacle_list
 
-    def sim(self, curr_pose: NDArray) -> Tuple[NDArray, NDArray]:
+    def sim(self, curr_pose: NDArray) -> tuple[NDArray, NDArray]:
         # in agent coordinate
         theta_array = np.array([2 * np.pi / self.num_points * i for i in range(self.num_points)])
         range_step_array = np.array(
@@ -166,7 +165,7 @@ def main() -> None:
     optimizer = CBFOptimizer(num_points, width)
 
     initial_pose = np.array([0, -3, -0.1])
-    agent_pose_list: List[NDArray] = [initial_pose]
+    agent_pose_list: list[NDArray] = [initial_pose]
     dt = 0.1
 
     # set obstacles
@@ -183,7 +182,7 @@ def main() -> None:
 
     fig, ax = plt.subplots()
 
-    def update(frame: int, agent_pose_list: List[NDArray]) -> None:
+    def update(frame: int, agent_pose_list: list[NDArray]) -> None:
         ax.cla()
 
         curr_pose = agent_pose_list[-1]

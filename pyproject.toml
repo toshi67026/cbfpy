@@ -51,6 +51,7 @@ plugins = "numpy.typing.mypy_plugin"
 strict = true
 ignore_missing_imports = true
 disallow_any_generics = false
+exclude = ["examples/"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

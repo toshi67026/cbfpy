@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
-from typing import List, Tuple
+
+from collections.abc import Sequence
 
 import numpy as np
 import quadprog
 from numpy.typing import NDArray
 
 
-def _assemble_constraints(G_list: List[NDArray]) -> NDArray:
+def _assemble_constraints(G_list: Sequence[NDArray]) -> NDArray:
     """Assemble constraint matrix from a list of constraint vectors.
 
     Args:
@@ -46,7 +47,7 @@ def _solve_qp(P: NDArray, q: NDArray, G_ineq: NDArray, h_ineq: NDArray) -> NDArr
         -G_ineq.T.astype(float),
         -h_ineq.flatten().astype(float),
     )
-    return x
+    return np.asarray(x)
 
 
 class CBFQPSolver:
@@ -56,9 +57,9 @@ class CBFQPSolver:
         self,
         P: NDArray,
         q: NDArray,
-        G_list: List[NDArray],
-        alpha_h_list: List[float],
-    ) -> Tuple[str, NDArray]:
+        G_list: Sequence[NDArray],
+        alpha_h_list: list[float],
+    ) -> tuple[str, NDArray]:
         """Solve the CBF-QP optimization problem.
 
             minimize_{u} (1/2) * u^T*P*u + q^T*u
@@ -87,9 +88,9 @@ class CBFNomQPSolver:
         self,
         nominal_input: NDArray,
         P: NDArray,
-        G_list: List[NDArray],
-        alpha_h_list: List[float],
-    ) -> Tuple[str, NDArray]:
+        G_list: Sequence[NDArray],
+        alpha_h_list: list[float],
+    ) -> tuple[str, NDArray]:
         """Solve the CBF-QP optimization problem with nominal input tracking.
 
             minimize_{u} (1/2) * (u-nominal_input)^T*P*(u-nominal_input)

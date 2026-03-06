@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from typing import Tuple, cast
+from typing import cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -39,7 +39,7 @@ class CBFBase:
     G: NDArray
     h: float
 
-    def get_constraints(self) -> Tuple[NDArray, float]:
+    def get_constraints(self) -> tuple[NDArray, float]:
         """
         Returns:
             G: constraint matrix
@@ -89,8 +89,8 @@ class ScalarCBF(CBFBase):
     """
 
     def __init__(self, limit: float, keep_upper: bool = True) -> None:
-        self.x = Symbol("x", real=True)  # type: ignore
-        self.sign = Symbol("sign_", real=True)  # type: ignore
+        self.x = Symbol("x", real=True)
+        self.sign = Symbol("sign_", real=True)
         self.set_parameters(limit, keep_upper)
 
     def set_parameters(self, limit: float, keep_upper: bool = True) -> None:
@@ -102,7 +102,7 @@ class ScalarCBF(CBFBase):
         self._calc_dhdx = lambdify([self.x, self.sign], cbf.diff(self.x))
         self._calc_h = lambdify([self.x, self.sign], cbf)
 
-    def get_parameters(self) -> Tuple[float, bool]:
+    def get_parameters(self) -> tuple[float, bool]:
         return self.limit, self.keep_upper
 
     def calc_constraints(self, curr_value: float) -> None:
@@ -126,8 +126,8 @@ class ScalarRangeCBF(CBFBase):
     """
 
     def __init__(self, a: float, b: float, keep_inside: bool = True) -> None:
-        self.x = Symbol("x", real=True)  # type: ignore
-        self.sign = Symbol("sign_", real=True)  # type: ignore
+        self.x = Symbol("x", real=True)
+        self.sign = Symbol("sign_", real=True)
         self.set_parameters(a, b, keep_inside)
 
     def set_parameters(self, a: float, b: float, keep_inside: bool = True) -> None:
@@ -141,7 +141,7 @@ class ScalarRangeCBF(CBFBase):
         self._calc_dhdx = lambdify([self.x, self.sign], cbf.diff(self.x))
         self._calc_h = lambdify([self.x, self.sign], cbf)
 
-    def get_parameters(self) -> Tuple[float, float, bool]:
+    def get_parameters(self) -> tuple[float, float, bool]:
         return self.a, self.b, self.keep_inside
 
     def calc_constraints(self, curr_value: float) -> None:
@@ -163,8 +163,8 @@ class CircleCBF(CBFBase):
     """
 
     def __init__(self, center: NDArray, radius: float, keep_inside: bool = True) -> None:
-        self.x = Matrix(symbols("x, y", real=True))  # type: ignore
-        self.sign = Symbol("sign_", real=True)  # type: ignore
+        self.x = Matrix(symbols("x, y", real=True))
+        self.sign = Symbol("sign_", real=True)
         self.set_parameters(center, radius, keep_inside)
 
     def set_parameters(self, center: NDArray, radius: float, keep_inside: bool = True) -> None:
@@ -174,11 +174,11 @@ class CircleCBF(CBFBase):
         self.radius = radius
         self.keep_inside = keep_inside
 
-        cbf = self.sign * (1.0 - self.x.norm(ord=2))  # type: ignore
+        cbf = self.sign * (1.0 - self.x.norm(ord=2))
         self._calc_dhdx = lambdify([self.x, self.sign], cbf.diff(self.x))
         self._calc_h = lambdify([self.x, self.sign], cbf)
 
-    def get_parameters(self) -> Tuple[NDArray, float, bool]:
+    def get_parameters(self) -> tuple[NDArray, float, bool]:
         return self.center, self.radius, self.keep_inside
 
     def calc_constraints(self, agent_position: NDArray) -> None:
@@ -220,8 +220,8 @@ class UnicycleCircleCBF(CircleCBF):
     """
 
     def __init__(self, center: NDArray, radius: float, keep_inside: bool = True) -> None:
-        self.x = Matrix(symbols("x, y, theta", real=True))  # type: ignore
-        self.sign = Symbol("sign_", real=True)  # type: ignore
+        self.x = Matrix(symbols("x, y, theta", real=True))
+        self.sign = Symbol("sign_", real=True)
         self.set_parameters(center, radius, keep_inside)
 
     def set_parameters(self, center: NDArray, radius: float, keep_inside: bool = True) -> None:
@@ -268,7 +268,7 @@ class UnicycleCircleCBF(CircleCBF):
             Transformed agent pose within unit circle. shape=(3,)
         """
         agent_position = agent_pose[0:2]
-        return cast(NDArray, np.append((agent_position - self.center) / self.radius, agent_pose[2]))
+        return np.append((agent_position - self.center) / self.radius, agent_pose[2])
 
 
 class Pnorm2dCBF(CBFBase):
@@ -288,8 +288,8 @@ class Pnorm2dCBF(CBFBase):
     def __init__(
         self, center: NDArray, width: NDArray, theta: float = 0.0, p: float = 2.0, keep_inside: bool = True
     ) -> None:
-        self.x = Matrix(symbols("x, y", real=True))  # type: ignore
-        self.sign = Symbol("sign_", real=True)  # type: ignore
+        self.x = Matrix(symbols("x, y", real=True))
+        self.sign = Symbol("sign_", real=True)
         self.set_parameters(center, width, theta, p, keep_inside)
 
     def set_parameters(
@@ -303,11 +303,11 @@ class Pnorm2dCBF(CBFBase):
         self.p = p
         self.keep_inside = keep_inside
 
-        cbf = self.sign * (1.0 - sum(abs(self.x.applyfunc(lambda x: x**self.p))) ** (1 / self.p))  # type: ignore
+        cbf = self.sign * (1.0 - sum(abs(self.x.applyfunc(lambda x: x**self.p))) ** (1 / self.p))
         self._calc_dhdx = lambdify([self.x, self.sign], cbf.diff(self.x))
         self._calc_h = lambdify([self.x, self.sign], cbf)
 
-    def get_parameters(self) -> Tuple[NDArray, NDArray, float, float, bool]:
+    def get_parameters(self) -> tuple[NDArray, NDArray, float, float, bool]:
         return self.center, self.width, self.theta, self.p, self.keep_inside
 
     def calc_constraints(self, agent_position: NDArray) -> None:
@@ -322,7 +322,8 @@ class Pnorm2dCBF(CBFBase):
         sign = 1 if self.keep_inside else -1
 
         self.G = (
-            rotation_matrix_2d(self.theta) @ self._calc_dhdx(agent_position_transformed, sign)
+            rotation_matrix_2d(self.theta)
+            @ self._calc_dhdx(agent_position_transformed, sign)
             / self.width.reshape(2, 1)
         ).flatten()
         assert self.G.shape == (2,)
@@ -357,8 +358,8 @@ class UnicyclePnorm2dCBF(Pnorm2dCBF):
     def __init__(
         self, center: NDArray, width: NDArray, theta: float = 0.0, p: float = 2.0, keep_inside: bool = True
     ) -> None:
-        self.x = Matrix(symbols("x, y, agent_theta", real=True))  # type: ignore
-        self.sign = Symbol("sign_", real=True)  # type: ignore
+        self.x = Matrix(symbols("x, y, agent_theta", real=True))
+        self.sign = Symbol("sign_", real=True)
         self.set_parameters(center, width, theta, p, keep_inside)
 
     def set_parameters(
@@ -418,10 +419,7 @@ class UnicyclePnorm2dCBF(Pnorm2dCBF):
             Transformed agent pose within unit shape. shape=(3,)
         """
         agent_position = agent_pose[0:2]
-        return cast(
-            NDArray,
-            np.append(rotation_matrix_2d(-self.theta) @ (agent_position - self.center) / self.width, agent_pose[2]),
-        )
+        return np.append(rotation_matrix_2d(-self.theta) @ (agent_position - self.center) / self.width, agent_pose[2])
 
 
 class LiDARCBF(CBFBase):
@@ -436,8 +434,8 @@ class LiDARCBF(CBFBase):
     """
 
     def __init__(self, width: NDArray, keep_upper: bool = True) -> None:
-        self.r = Symbol("r", real=True)  # type: ignore
-        self.theta = Symbol("theta", real=True)  # type: ignore
+        self.r = Symbol("r", real=True)
+        self.theta = Symbol("theta", real=True)
         self.set_parameters(width, keep_upper)
 
     def set_parameters(self, width: NDArray, keep_upper: bool = True) -> None:
@@ -445,7 +443,7 @@ class LiDARCBF(CBFBase):
         self.width = width.flatten()
         self.keep_upper = keep_upper
 
-        r_c = sqrt(sum((self.width * np.array([cos(self.theta), sin(self.theta)])) ** 2))  # type: ignore
+        r_c = sqrt(sum((self.width * np.array([cos(self.theta), sin(self.theta)])) ** 2))
         cbf = self.r - r_c
         self._calc_dhdx = lambdify(
             [self.r, self.theta],
@@ -453,7 +451,7 @@ class LiDARCBF(CBFBase):
         )
         self._calc_h = lambdify([self.r, self.theta], cbf)
 
-    def get_parameters(self) -> Tuple[NDArray, bool]:
+    def get_parameters(self) -> tuple[NDArray, bool]:
         return self.width, self.keep_upper
 
     def calc_constraints(self, r: float, theta: float) -> None:

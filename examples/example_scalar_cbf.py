@@ -94,7 +94,7 @@ def main() -> None:
         ax.set_ylim([-3, 3])
         ax.legend(loc="upper right")
 
-    ani = FuncAnimation(
+    ani = FuncAnimation(  # noqa: F841
         fig,
         update,
         frames=100,

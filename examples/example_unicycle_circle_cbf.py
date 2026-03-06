@@ -129,7 +129,7 @@ def main() -> None:
         ax.set_xlim(lim)
         ax.set_ylim(lim)
 
-    ani = FuncAnimation(
+    ani = FuncAnimation(  # noqa: F841
         fig,
         update,
         frames=100,

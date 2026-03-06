@@ -8,29 +8,7 @@ from matplotlib.animation import FuncAnimation
 from numpy.typing import NDArray
 
 from cbfpy.cbf import UnicyclePnorm2dCBF
-from cbfpy.cbf_qp_solver import CBFNomQPSolver
-
-
-class CBFOptimizer:
-    def __init__(
-        self, center: NDArray, width: NDArray, theta: float = 0.0, p: float = 2.0, keep_inside: bool = True
-    ) -> None:
-        self.qp_nom_solver = CBFNomQPSolver()
-        self.P = np.diag([1, 10])
-        self.pnorm2d_cbf = UnicyclePnorm2dCBF(center, width, theta, p, keep_inside)
-
-    def set_parameters(
-        self, center: NDArray, width: NDArray, theta: float = 0.0, p: float = 2.0, keep_inside: bool = True
-    ) -> None:
-        self.pnorm2d_cbf.set_parameters(center, width, theta, p, keep_inside)
-
-    def get_parameters(self) -> tuple[NDArray, NDArray, float, float, bool]:
-        return self.pnorm2d_cbf.get_parameters()
-
-    def optimize(self, nominal_input: NDArray, agent_pose: NDArray) -> tuple[str, NDArray]:
-        self.pnorm2d_cbf.calc_constraints(agent_pose)
-        G, alpha_h = self.pnorm2d_cbf.get_constraints()
-        return self.qp_nom_solver.optimize(nominal_input, self.P, [G], [alpha_h])
+from cbfpy.cbf_controller import CBFController
 
 
 def main() -> None:
@@ -40,7 +18,8 @@ def main() -> None:
     p = 2.0
     keep_inside = True
 
-    optimizer = CBFOptimizer(center, width, theta, p, keep_inside)
+    cbf = UnicyclePnorm2dCBF(center, width, theta, p, keep_inside)
+    controller = CBFController([cbf], P=np.diag([1, 10]))
 
     initial_pose_array = np.array([-1, -1, 0])
     agent_pose_list: list[NDArray] = [initial_pose_array]
@@ -58,8 +37,9 @@ def main() -> None:
 
         curr_pose = agent_pose_list[-1]
 
-        optimizer.set_parameters(center, width, theta, p, keep_inside)
-        _, optimal_input = optimizer.optimize(nominal_input, curr_pose)
+        cbf.set_parameters(center, width, theta, p, keep_inside)
+        cbf.calc_constraints(curr_pose)
+        _, optimal_input = controller.optimize(nominal_input)
         curr_position = curr_pose[0:2]
         curr_theta = curr_pose[2]
 

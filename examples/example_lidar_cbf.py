@@ -12,34 +12,7 @@ from matplotlib.animation import FuncAnimation
 from numpy.typing import NDArray
 
 from cbfpy.cbf import LiDARCBF, rotation_matrix_2d
-from cbfpy.cbf_qp_solver import CBFNomQPSolver
-
-
-class CBFOptimizer:
-    def __init__(self, num_points: int, width: NDArray, keep_upper: bool = True) -> None:
-        self.qp_nom_solver = CBFNomQPSolver()
-        # Set weights so that angular velocity is more likely to occur.
-        self.P = np.diag([10, 1])
-
-        self.lidar_cbf_list = [LiDARCBF(width, keep_upper) for _ in range(num_points)]
-
-    def set_parameters(self, width: NDArray, keep_upper: bool = True) -> None:
-        for lidar_cbf in self.lidar_cbf_list:
-            lidar_cbf.set_parameters(width, keep_upper)
-
-    def get_parameters(self) -> list[tuple[NDArray, bool]]:
-        return [lidar_cbf.get_parameters() for lidar_cbf in self.lidar_cbf_list]
-
-    def optimize(self, nominal_input: NDArray, r: NDArray, theta: NDArray) -> tuple[str, NDArray]:
-        G_list: list[NDArray] = []
-        alpha_h_list: list[float] = []
-        for i, lidar_cbf in enumerate(self.lidar_cbf_list):
-            lidar_cbf.calc_constraints(r[i], theta[i])
-            G, alpha_h = lidar_cbf.get_constraints()
-            G_list.append(G)
-            alpha_h_list.append(alpha_h)
-
-        return self.qp_nom_solver.optimize(nominal_input, self.P, G_list, alpha_h_list)
+from cbfpy.cbf_controller import CBFController
 
 
 class Obstacle:
@@ -162,7 +135,9 @@ class LiDARSimulator:
 def main() -> None:
     num_points = 20
     width = np.array([0.7, 0.5])
-    optimizer = CBFOptimizer(num_points, width)
+    lidar_cbf_list = [LiDARCBF(width) for _ in range(num_points)]
+    # Set weights so that angular velocity is more likely to occur.
+    controller = CBFController(lidar_cbf_list, P=np.diag([10, 1]))
 
     initial_pose = np.array([0, -3, -0.1])
     agent_pose_list: list[NDArray] = [initial_pose]
@@ -194,7 +169,11 @@ def main() -> None:
         # agent coordinate
         r, theta = lidar_sim.sim(curr_pose)
 
-        _, optimal_input = optimizer.optimize(nominal_input, r, theta)
+        # Update constraints for each LiDAR ray
+        for i, lidar_cbf in enumerate(lidar_cbf_list):
+            lidar_cbf.calc_constraints(r[i], theta[i])
+
+        _, optimal_input = controller.optimize(nominal_input)
         transform_matrix: NDArray = np.array(
             [
                 [np.cos(curr_theta), 0],
@@ -267,12 +246,10 @@ def main() -> None:
         ax.plot([0], [0], linewidth=5, color="black", label="nominal_input")
         ax.plot([0], [0], linewidth=5, color="red", label="optimal_input")
 
-        param_list = optimizer.get_parameters()
-        cbf_width = param_list[0][0]
         r_patch = patches.Ellipse(
             xy=curr_position,
-            width=cbf_width[0] * 2,
-            height=cbf_width[1] * 2,
+            width=width[0] * 2,
+            height=width[1] * 2,
             angle=curr_theta * 180 / np.pi,
             color="blue",
             alpha=0.5,

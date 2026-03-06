@@ -8,25 +8,7 @@ from matplotlib.animation import FuncAnimation
 from numpy.typing import NDArray
 
 from cbfpy.cbf import UnicycleCircleCBF
-from cbfpy.cbf_qp_solver import CBFNomQPSolver
-
-
-class CBFOptimizer:
-    def __init__(self, center: NDArray, radius: float = 1.0, keep_inside: bool = True) -> None:
-        self.qp_nom_solver = CBFNomQPSolver()
-        self.P = np.eye(2)
-        self.circle_cbf = UnicycleCircleCBF(center, radius, keep_inside)
-
-    def set_parameters(self, center: NDArray, radius: float = 1.0, keep_inside: bool = True) -> None:
-        self.circle_cbf.set_parameters(center, radius, keep_inside)
-
-    def get_parameters(self) -> tuple[NDArray, float, bool]:
-        return self.circle_cbf.get_parameters()
-
-    def optimize(self, nominal_input: NDArray, agent_pose: NDArray) -> tuple[str, NDArray]:
-        self.circle_cbf.calc_constraints(agent_pose)
-        G, alpha_h = self.circle_cbf.get_constraints()
-        return self.qp_nom_solver.optimize(nominal_input, self.P, [G], [alpha_h])
+from cbfpy.cbf_controller import CBFController
 
 
 def main() -> None:
@@ -34,7 +16,8 @@ def main() -> None:
     radius = 1.5
     keep_inside = True
 
-    optimizer = CBFOptimizer(center, radius, keep_inside)
+    cbf = UnicycleCircleCBF(center, radius, keep_inside)
+    controller = CBFController([cbf], P=np.eye(2))
 
     initial_pose_array = np.array([0, 0.5, 0.0])
     agent_pose_list: list[NDArray] = [initial_pose_array]
@@ -52,8 +35,9 @@ def main() -> None:
 
         curr_pose = agent_pose_list[-1]
 
-        optimizer.set_parameters(center, radius, keep_inside)
-        _, optimal_input = optimizer.optimize(nominal_input, curr_pose)
+        cbf.set_parameters(center, radius, keep_inside)
+        cbf.calc_constraints(curr_pose)
+        _, optimal_input = controller.optimize(nominal_input)
         curr_position = curr_pose[0:2]
         curr_theta = curr_pose[2]
 

@@ -88,3 +88,25 @@ enabling reactive navigation through environments with multiple obstacles.
 .. literalinclude:: ../../examples/example_lidar_cbf.py
    :language: python
    :caption: examples/example_lidar_cbf.py
+
+
+Multi-Agent Collision Avoidance
+-------------------------------
+
+Four agents swap positions diagonally while avoiding each other.
+Uses :class:`~cbfpy.cbf_controller.CBFController` with multiple ``CircleCBF`` instances per agent.
+
+.. literalinclude:: ../../examples/example_multi_agent_cbf.py
+   :language: python
+   :caption: examples/example_multi_agent_cbf.py
+
+
+Path Following with Obstacle Avoidance
+---------------------------------------
+
+An agent follows a sequence of waypoints while avoiding circular obstacles.
+Demonstrates :class:`~cbfpy.cbf_controller.CBFController` composing multiple CBF constraints.
+
+.. literalinclude:: ../../examples/example_path_following_cbf.py
+   :language: python
+   :caption: examples/example_path_following_cbf.py

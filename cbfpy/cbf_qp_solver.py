@@ -18,8 +18,8 @@ def _assemble_constraints(G_list: Sequence[NDArray]) -> NDArray:
         Assembled constraint matrix. shape=(M, N)
     """
     if len(G_list) > 1:
-        return np.array([g.flatten() for g in G_list])
-    return G_list[0].reshape(1, -1)
+        return np.array([np.atleast_1d(g).flatten() for g in G_list])
+    return np.atleast_1d(G_list[0]).reshape(1, -1)
 
 
 def _solve_qp(P: NDArray, q: NDArray, G_ineq: NDArray, h_ineq: NDArray) -> NDArray:

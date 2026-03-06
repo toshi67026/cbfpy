@@ -8,6 +8,13 @@ CBF Classes
    :members:
    :show-inheritance:
 
+Controller
+----------
+
+.. automodule:: cbfpy.cbf_controller
+   :members:
+   :show-inheritance:
+
 QP Solvers
 ----------
 

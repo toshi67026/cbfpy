@@ -13,14 +13,10 @@ from cbfpy.cbf_qp_solver import CBFNomQPSolver
 
 
 class CBFOptimizer:
-    def __init__(self) -> None:
+    def __init__(self, center: NDArray, radius: float = 1.0, keep_inside: bool = True) -> None:
         self.qp_nom_solver = CBFNomQPSolver()
         self.P = np.eye(2)
-
-        self.circle_cbf = CircleCBF()
-
-        # initialize(must be overwritten)
-        self.set_parameters(np.zeros(2))
+        self.circle_cbf = CircleCBF(center, radius, keep_inside)
 
     def set_parameters(self, center: NDArray, radius: float = 1.0, keep_inside: bool = True) -> None:
         self.circle_cbf.set_parameters(center, radius, keep_inside)
@@ -28,25 +24,14 @@ class CBFOptimizer:
     def get_parameters(self) -> Tuple[NDArray, float, bool]:
         return self.circle_cbf.get_parameters()
 
-    def _calc_constraints(self, agent_position: NDArray) -> None:
-        self.circle_cbf.calc_constraints(agent_position)
-
-    def _get_constraints(self) -> Tuple[List[NDArray], List[float]]:
-        G, alpha_h = self.circle_cbf.get_constraints()
-        return [G], [alpha_h]
-
     def optimize(self, nominal_input: NDArray, agent_position: NDArray) -> Tuple[str, NDArray]:
-        self._calc_constraints(agent_position)
-        G_list, alpha_h_list = self._get_constraints()
-
-        try:
-            return self.qp_nom_solver.optimize(nominal_input, self.P, G_list, alpha_h_list)
-        except Exception as e:
-            raise e
+        self.circle_cbf.calc_constraints(agent_position)
+        G, alpha_h = self.circle_cbf.get_constraints()
+        return self.qp_nom_solver.optimize(nominal_input, self.P, [G], [alpha_h])
 
 
 def main() -> None:
-    optimizer_list = [CBFOptimizer(), CBFOptimizer()]
+    optimizer_list = [CBFOptimizer(np.zeros(2)), CBFOptimizer(np.zeros(2))]
 
     initial_position_array = np.array([[-2, -2.5], [2, 2]])
     agent_position_list: List[NDArray] = [initial_position_array]

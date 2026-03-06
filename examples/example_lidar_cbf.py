@@ -10,17 +10,17 @@ from matplotlib import patches
 from matplotlib.animation import FuncAnimation
 from numpy.typing import NDArray
 
-from cbfpy.cbf import LiDARCBF
+from cbfpy.cbf import LiDARCBF, rotation_matrix_2d
 from cbfpy.cbf_qp_solver import CBFNomQPSolver
 
 
 class CBFOptimizer:
-    def __init__(self, num_points: int) -> None:
+    def __init__(self, num_points: int, width: NDArray, keep_upper: bool = True) -> None:
         self.qp_nom_solver = CBFNomQPSolver()
         # Set weights so that angular velocity is more likely to occur.
         self.P = np.diag([10, 1])
 
-        self.lidar_cbf_list = [LiDARCBF()] * num_points
+        self.lidar_cbf_list = [LiDARCBF(width, keep_upper) for _ in range(num_points)]
 
     def set_parameters(self, width: NDArray, keep_upper: bool = True) -> None:
         for lidar_cbf in self.lidar_cbf_list:
@@ -29,28 +29,16 @@ class CBFOptimizer:
     def get_parameters(self) -> List[Tuple[NDArray, bool]]:
         return [lidar_cbf.get_parameters() for lidar_cbf in self.lidar_cbf_list]
 
-    def calc_constraints(self, r: NDArray, theta: NDArray) -> None:
-        for i, lidar_cbf in enumerate(self.lidar_cbf_list):
-            lidar_cbf.calc_constraints(r[i], theta[i])
-
-    def get_constraints(self) -> Tuple[List[NDArray], List[float]]:
+    def optimize(self, nominal_input: NDArray, r: NDArray, theta: NDArray) -> Tuple[str, NDArray]:
         G_list: List[NDArray] = []
         alpha_h_list: List[float] = []
-        for lidar_cbf in self.lidar_cbf_list:
+        for i, lidar_cbf in enumerate(self.lidar_cbf_list):
+            lidar_cbf.calc_constraints(r[i], theta[i])
             G, alpha_h = lidar_cbf.get_constraints()
             G_list.append(G)
             alpha_h_list.append(alpha_h)
 
-        return G_list, alpha_h_list
-
-    def optimize(self, nominal_input: NDArray, r: NDArray, theta: NDArray) -> Tuple[str, NDArray]:
-        self.calc_constraints(r, theta)
-        G_list, alpha_h_list = self.get_constraints()
-
-        try:
-            return self.qp_nom_solver.optimize(nominal_input, self.P, G_list, alpha_h_list)
-        except Exception as e:
-            raise e
+        return self.qp_nom_solver.optimize(nominal_input, self.P, G_list, alpha_h_list)
 
 
 class Obstacle:
@@ -59,7 +47,7 @@ class Obstacle:
         ...
 
     @abstractmethod
-    def plot_func(self, color: str, alpha: float) -> patches:
+    def plot_func(self, color: str, alpha: float) -> patches.Patch:
         ...
 
 
@@ -84,7 +72,7 @@ class CircleObstacle(Obstacle):
             <= self.radius,
         )
 
-    def plot_func(self, color: str, alpha: float) -> patches:
+    def plot_func(self, color: str, alpha: float) -> patches.Patch:
         return patches.Circle(xy=self.center, radius=self.radius, color=color, alpha=alpha)
 
 
@@ -95,11 +83,9 @@ class RectangleObstacle(Obstacle):
     theta: float
 
     def is_inner(self, r: float, theta: float, curr_pose: NDArray) -> bool:
-        rotation_matrix = self._get_rotation_matrix(-self.theta)
-
         # standardization to unit square
         transformed_position: NDArray = (
-            rotation_matrix
+            rotation_matrix_2d(-self.theta)
             @ (
                 np.array(
                     [r * np.cos(theta + curr_pose[2]), r * np.sin(theta + curr_pose[2])] + np.array(curr_pose[0:2])
@@ -112,7 +98,7 @@ class RectangleObstacle(Obstacle):
         # max norm
         return cast(bool, np.linalg.norm(transformed_position, ord=np.inf) <= 1)
 
-    def plot_func(self, color: str, alpha: float) -> patches:
+    def plot_func(self, color: str, alpha: float) -> patches.Patch:
         # matplotlib>=3.6 is required
         return patches.Rectangle(
             xy=self.center - self.width,
@@ -122,15 +108,6 @@ class RectangleObstacle(Obstacle):
             rotation_point="center",
             color=color,
             alpha=alpha,
-        )
-
-    @staticmethod
-    def _get_rotation_matrix(rad: float) -> NDArray:
-        return np.array(
-            [
-                [np.cos(rad), -np.sin(rad)],
-                [np.sin(rad), np.cos(rad)],
-            ]
         )
 
 
@@ -166,17 +143,7 @@ class LiDARSimulator:
             curr_pose: NDArray,
             obstacle_list: Sequence[Obstacle],
         ) -> float:
-            """Linear search for measured distance
-
-            Args:
-                range_step_array (NDArray): candidate sequence of measured distances
-                theta (float): laser angle in agent coordinate
-                curr_pose (NDArray): current pose(x,y,theta)
-                obstacle_list (Sequence[Obstacle]): obstacles
-
-            Returns:
-                float: measured distance
-            """
+            """Linear search for measured distance."""
             for range_ in range_step_array:
                 if any([obstacle.is_inner(range_, theta, curr_pose) for obstacle in obstacle_list]):
                     return float(range_)
@@ -195,8 +162,8 @@ class LiDARSimulator:
 
 def main() -> None:
     num_points = 20
-    optimizer = CBFOptimizer(num_points)
-    optimizer.set_parameters(np.array([0.7, 0.5]))
+    width = np.array([0.7, 0.5])
+    optimizer = CBFOptimizer(num_points, width)
 
     initial_pose = np.array([0, -3, -0.1])
     agent_pose_list: List[NDArray] = [initial_pose]
@@ -302,16 +269,16 @@ def main() -> None:
         ax.plot([0], [0], linewidth=5, color="red", label="optimal_input")
 
         param_list = optimizer.get_parameters()
-        width = param_list[0][0]
-        r = patches.Ellipse(
+        cbf_width = param_list[0][0]
+        r_patch = patches.Ellipse(
             xy=curr_position,
-            width=width[0] * 2,
-            height=width[1] * 2,
+            width=cbf_width[0] * 2,
+            height=cbf_width[1] * 2,
             angle=curr_theta * 180 / np.pi,
             color="blue",
             alpha=0.5,
         )
-        ax.add_patch(r)
+        ax.add_patch(r_patch)
         for obstacle in obstacle_list:
             ax.add_patch(obstacle.plot_func(color="green", alpha=0.5))
 

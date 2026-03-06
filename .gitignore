@@ -1,13 +1,20 @@
-*__pycache__
+__pycache__/
 *.pyc
-.mypy_cache
-.pytest_cache
+*.egg-info/
+dist/
+.venv/
+
+# type checker / linter
+.mypy_cache/
+.ruff_cache/
+
+# test
+.pytest_cache/
+.coverage
+coverage.xml
+cov_html/
+
+# docs (auto-generated)
 /docs/source/*
 /docs/build/*
 !/docs/source/conf.py
-.coverage
-coverage.xml
-cov_html
-.ruff_cache
-.venv
-dist

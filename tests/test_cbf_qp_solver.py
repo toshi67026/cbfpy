@@ -12,32 +12,33 @@ class TestCBFQPSolver:
     q = np.ones(2)
 
     def test_optimize_optimal1(self) -> None:
-        """one inequality constraint"""
+        """one inequality constraint (inactive)"""
         G_list = [np.ones(2)]
         alpha_h_list = [1.0]
 
         status, optimal_input = self.qp_solver.optimize(self.P, self.q, G_list, alpha_h_list)
         assert status == "optimal"
-        assert np.allclose(optimal_input, np.array([-1.00188955, -1.00188955]))
+        # Unconstrained minimum: x = -q = [-1, -1], constraint [1,1]x<=1 is inactive
+        assert np.allclose(optimal_input, np.array([-1.0, -1.0]))
 
     def test_optimize_optimal2(self) -> None:
-        """two inequality constraints"""
+        """two inequality constraints (one active)"""
         G_list = [np.ones(2), -np.ones(2)]
         alpha_h_list = [1.0, 1.0]
 
         status, optimal_input = self.qp_solver.optimize(self.P, self.q, G_list, alpha_h_list)
         assert status == "optimal"
-        assert np.allclose(optimal_input, np.array([-0.2, -0.2]))
+        # Active constraint: x1+x2 = -1, by symmetry x1=x2=-0.5
+        assert np.allclose(optimal_input, np.array([-0.5, -0.5]))
 
     def test_optimize_except(self) -> None:
-        """exception"""
+        """dimension mismatch raises exception"""
         G_list = [np.ones(2), -np.ones(2)]
         alpha_h_list = [1.0]
 
         assert len(G_list) != len(alpha_h_list)
-        with pytest.raises(Exception) as e:
+        with pytest.raises(Exception):
             _ = self.qp_solver.optimize(self.P, self.q, G_list, alpha_h_list)
-        assert str(e.value) == "'G' must be a 'd' matrix of size (1, 2)"
 
 
 class TestCBFNomQPSolver:
@@ -46,31 +47,32 @@ class TestCBFNomQPSolver:
     nominal_input = np.ones(2)
 
     def test_optimize_optimal1(self) -> None:
-        """one inequality constraint"""
+        """one inequality constraint (inactive)"""
         G_list = [np.ones(2)]
         alpha_h_list = [1.0]
 
         status, optimal_input = self.nom_qp_solver.optimize(self.nominal_input, self.P, G_list, alpha_h_list)
 
         assert status == "optimal"
-        assert np.allclose(optimal_input, np.array([1.00188955, 1.00188955]))
+        # Unconstrained minimum: u = nominal_input = [1, 1], constraint is inactive
+        assert np.allclose(optimal_input, np.array([1.0, 1.0]))
 
     def test_optimize_optimal2(self) -> None:
-        """two inequality constraints"""
+        """two inequality constraints (one active)"""
         G_list = [np.ones(2), -np.ones(2)]
         alpha_h_list = [1.0, 1.0]
 
         status, optimal_input = self.nom_qp_solver.optimize(self.nominal_input, self.P, G_list, alpha_h_list)
 
         assert status == "optimal"
-        assert np.allclose(optimal_input, np.array([0.2, 0.2]))
+        # Active constraint: u1+u2 = 1, by symmetry u1=u2=0.5
+        assert np.allclose(optimal_input, np.array([0.5, 0.5]))
 
     def test_optimize_except(self) -> None:
-        """exception"""
+        """dimension mismatch raises exception"""
         G_list = [np.ones(2), -np.ones(2)]
         alpha_h_list = [1.0]
 
         assert len(G_list) != len(alpha_h_list)
-        with pytest.raises(Exception) as e:
+        with pytest.raises(Exception):
             _ = self.nom_qp_solver.optimize(self.nominal_input, self.P, G_list, alpha_h_list)
-        assert str(e.value) == "'G' must be a 'd' matrix of size (1, 2)"

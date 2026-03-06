@@ -1,7 +1,8 @@
 {
 	"recommendations": [
 		"ms-python.python",
-		"njpwerner.autodocstring",
+		"charliermarsh.ruff",
+		"ms-python.mypy-type-checker",
 		"ryanluker.vscode-coverage-gutters"
 	]
 }

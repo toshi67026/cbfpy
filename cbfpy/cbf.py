@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from dataclasses import dataclass
 from typing import Tuple, cast
 
 import numpy as np
@@ -8,18 +7,33 @@ from numpy.typing import NDArray
 from sympy import Matrix, Symbol, cos, lambdify, sin, sqrt, symbols
 
 
-@dataclass
+def rotation_matrix_2d(rad: float) -> NDArray:
+    """Create a 2D rotation matrix.
+
+    Args:
+        rad: rotation angle in radians
+
+    Returns:
+        2x2 rotation matrix
+    """
+    return np.array(
+        [
+            [np.cos(rad), -np.sin(rad)],
+            [np.sin(rad), np.cos(rad)],
+        ]
+    )
+
+
 class CBFBase:
     """CBF base class
 
-    Attributes:
-        G (NDArray): constraint matrix(=dh/dx)
-        h (float): constraint value(=h(x))
+    The CBF optimization problem is formulated as:
+        minimize_{u} {objective function}
+        subject to G*u + alpha(h) >= 0
 
-    Note:
-        The CBF optimization problem is formulated as:
-            minimize_{u} {objective function}
-            subject to G*u + alpha(h) >= 0
+    Attributes:
+        G: constraint matrix (=dh/dx)
+        h: constraint value (=h(x))
     """
 
     G: NDArray
@@ -28,34 +42,34 @@ class CBFBase:
     def get_constraints(self) -> Tuple[NDArray, float]:
         """
         Returns:
-            (NDArray): G
-            (NDArray): alpha(h)
-
-        Note:
-            Call get_constraints individually to apply alpha function.
+            G: constraint matrix
+            alpha(h): value of alpha function applied to h
         """
         return self.G, self._alpha(self.h)
 
     def _alpha(self, h: float) -> float:
-        """
+        """Extended class-K function. Override to customize.
+
         Args:
-            h (float): constraint value(=h(x))
+            h: constraint value (=h(x))
 
         Returns:
-            (float): h
-
-        Note:
-            If you use specific alpha function, implement it with override.
+            alpha(h). Default implementation returns h itself.
         """
         return h
 
 
 class GeneralCBF(CBFBase):
-    """
+    """General-purpose CBF with manually specified constraints.
+
     Attributes:
-        G (NDArray): constraint matrix(=dh/dx). shape=(1,)
-        h (float): constraint value(=h(x))
+        G: constraint matrix (=dh/dx). shape=(N,)
+        h: constraint value (=h(x))
     """
+
+    def __init__(self, G: NDArray, h: float) -> None:
+        self.G = G
+        self.h = h
 
     def calc_constraints(self, G: NDArray, h: float) -> None:
         self.G = G
@@ -63,25 +77,24 @@ class GeneralCBF(CBFBase):
 
 
 class ScalarCBF(CBFBase):
-    """
+    """CBF for scalar state variable.
+
+    If keep_upper is True, the safety set is x - limit >= 0.
+
     Attributes:
-        limit (float): limit for scalar state variable
-        keep_upper (bool): flag to prohibit going lower of the limit. Defaults to True.
-        x (Symbol): scalar state variable in symbolic form for cbf
-        sign (Symbol): symbolic variable for cbf
-        G (NDArray): constraint matrix(=dh/dx). shape=(1,)
-        h (NDArray): constraint value(=h(x)). shape=(1,)
-
-    Note:
-        If keep_upper is True, the safety set is x - limit >= 0.
+        limit: limit for scalar state variable
+        keep_upper: flag to prohibit going lower of the limit
+        G: constraint matrix (=dh/dx). shape=(1,)
+        h: constraint value (=h(x))
     """
 
-    def __init__(self) -> None:
+    def __init__(self, limit: float, keep_upper: bool = True) -> None:
         self.x = Symbol("x", real=True)  # type: ignore
         self.sign = Symbol("sign_", real=True)  # type: ignore
+        self.set_parameters(limit, keep_upper)
 
     def set_parameters(self, limit: float, keep_upper: bool = True) -> None:
-        """Set parameters and auxiliary functions for constraint calculation"""
+        """Set parameters and rebuild symbolic functions."""
         self.limit = limit
         self.keep_upper = keep_upper
 
@@ -100,26 +113,25 @@ class ScalarCBF(CBFBase):
 
 
 class ScalarRangeCBF(CBFBase):
-    """
+    """CBF for scalar state variable with range constraint.
+
+    If keep_inside is True, the safety set is a <= x <= b.
+
     Attributes:
-        a (float): lower limit for scalar state variable
-        b (float): upper limit for scalar state variable
-        keep_inside (bool): flag to prohibit going outside of the range. Defaults to True.
-        x (Symbol): scalar state variable in symbolic form for cbf
-        sign (Symbol): symbolic variable for cbf
-        G (NDArray): constraint matrix(=dh/dx). shape=(1,)
-        h (float): constraint value(=h(x))
-
-    Note:
-        If keep_inside is True, the safety set is a <= x <= b.
+        a: lower limit for scalar state variable
+        b: upper limit for scalar state variable
+        keep_inside: flag to prohibit going outside of the range
+        G: constraint matrix (=dh/dx). shape=(1,)
+        h: constraint value (=h(x))
     """
 
-    def __init__(self) -> None:
+    def __init__(self, a: float, b: float, keep_inside: bool = True) -> None:
         self.x = Symbol("x", real=True)  # type: ignore
         self.sign = Symbol("sign_", real=True)  # type: ignore
+        self.set_parameters(a, b, keep_inside)
 
     def set_parameters(self, a: float, b: float, keep_inside: bool = True) -> None:
-        """Set parameters and auxiliary functions for constraint calculation"""
+        """Set parameters and rebuild symbolic functions."""
         assert a < b
         self.a = a
         self.b = b
@@ -140,23 +152,23 @@ class ScalarRangeCBF(CBFBase):
 
 
 class CircleCBF(CBFBase):
-    """
-    Atrributes:
-        center (NDArray): center of circular area in world coordinate. shape=(2,)
-        radius (float): radius of the circular area.
-        keep_inside (bool): flag to prohibit going outside of the area. Defaults to True.
-        x (Matrix): state variables in symbolic form for cbf
-        sign (Symbol): symbolic variable for cbf
-        G (NDArray): constraint matrix(=dh/dx). shape=(2,)
-        h (float): constraint value(=h(x))
+    """CBF for circular area constraint.
+
+    Attributes:
+        center: center of circular area in world coordinate. shape=(2,)
+        radius: radius of the circular area
+        keep_inside: flag to prohibit going outside of the area
+        G: constraint matrix (=dh/dx). shape=(2,)
+        h: constraint value (=h(x))
     """
 
-    def __init__(self) -> None:
+    def __init__(self, center: NDArray, radius: float, keep_inside: bool = True) -> None:
         self.x = Matrix(symbols("x, y", real=True))  # type: ignore
         self.sign = Symbol("sign_", real=True)  # type: ignore
+        self.set_parameters(center, radius, keep_inside)
 
     def set_parameters(self, center: NDArray, radius: float, keep_inside: bool = True) -> None:
-        """Set parameters and auxiliary functions for constraint calculation"""
+        """Set parameters and rebuild symbolic functions."""
         self.center = center.flatten()
         assert radius > 0
         self.radius = radius
@@ -172,10 +184,10 @@ class CircleCBF(CBFBase):
     def calc_constraints(self, agent_position: NDArray) -> None:
         """
         Args:
-            agent_position (NDArray): agent position in world coordinate. shape=(2,)
+            agent_position: agent position in world coordinate. shape=(2,)
 
         Note:
-            division by radius is a remnant of the transformation
+            Division by radius is a remnant of the transformation.
         """
         agent_position_transformed = self._transform_agent_position(agent_position.flatten())
         sign = 1 if self.keep_inside else -1
@@ -185,23 +197,35 @@ class CircleCBF(CBFBase):
         self.h = self._calc_h(agent_position_transformed, sign)
 
     def _transform_agent_position(self, agent_position: NDArray) -> NDArray:
-        """
+        """Transform agent position from world coordinate to unit circle.
+
         Args:
-            agent_position (NDArray): agent position in world coordinate. shape=(2,)
+            agent_position: agent position in world coordinate. shape=(2,)
 
         Returns:
-            (NDArray): transformed agent position within unit circle. shape=(2,)
+            Transformed agent position within unit circle. shape=(2,)
         """
         return cast(NDArray, ((agent_position - self.center) / self.radius))
 
 
 class UnicycleCircleCBF(CircleCBF):
-    def __init__(self) -> None:
+    """CBF for circular area constraint with unicycle model.
+
+    Attributes:
+        center: center of circular area in world coordinate. shape=(2,)
+        radius: radius of the circular area
+        keep_inside: flag to prohibit going outside of the area
+        G: constraint matrix (=dh/dx). shape=(2,)
+        h: constraint value (=h(x))
+    """
+
+    def __init__(self, center: NDArray, radius: float, keep_inside: bool = True) -> None:
         self.x = Matrix(symbols("x, y, theta", real=True))  # type: ignore
         self.sign = Symbol("sign_", real=True)  # type: ignore
+        self.set_parameters(center, radius, keep_inside)
 
     def set_parameters(self, center: NDArray, radius: float, keep_inside: bool = True) -> None:
-        """Set parameters and auxiliary functions for constraint calculation"""
+        """Set parameters and rebuild symbolic functions."""
         self.center = center.flatten()
         assert radius > 0
         self.radius = radius
@@ -214,16 +238,15 @@ class UnicycleCircleCBF(CircleCBF):
     def calc_constraints(self, agent_pose: NDArray) -> None:
         """
         Args:
-            agent_position (NDArray): agent position in world coordinate. shape=(2,)
+            agent_pose: agent pose in world coordinate. shape=(3,) [x, y, theta]
 
         Note:
-            division by radius is a remnant of the transformation
+            Division by radius is a remnant of the transformation.
         """
         sign = 1 if self.keep_inside else -1
         agent_pose_transformed = self._transform_agent_pose(agent_pose.flatten())
 
         theta = agent_pose[2]
-        # system matrix
         A = np.array(
             [
                 [np.cos(theta), 0],
@@ -236,40 +259,43 @@ class UnicycleCircleCBF(CircleCBF):
         self.h = self._calc_h(agent_pose_transformed, sign)
 
     def _transform_agent_pose(self, agent_pose: NDArray) -> NDArray:
-        """
+        """Transform agent pose from world coordinate to unit circle.
+
         Args:
-            agent_pose (NDArray): agent pose in world coordinate. shape=(3,)
+            agent_pose: agent pose in world coordinate. shape=(3,)
 
         Returns:
-            (NDArray): transformed agent pose within unit circle. shape=(3,)
+            Transformed agent pose within unit circle. shape=(3,)
         """
         agent_position = agent_pose[0:2]
         return cast(NDArray, np.append((agent_position - self.center) / self.radius, agent_pose[2]))
 
 
 class Pnorm2dCBF(CBFBase):
-    """
-    Atrributes:
-        center (NDArray): center of area in world coordinate. shape=(2,)
-        width (NDArray): half length of the major and minor axis of ellipse
+    """CBF for p-norm shaped area constraint.
+
+    Attributes:
+        center: center of area in world coordinate. shape=(2,)
+        width: half length of the major and minor axis of ellipse
             that match the x and y axis in the area coordinate. shape=(2,)
-        theta (float): rotation angle(rad) world to the area coordinate.
-        p (float): multiplier for p-norm.
-        keep_inside (bool): flag to prohibit going outside of the area. Defaults to True.
-        x (Matrix): state variables in symbolic form for cbf
-        sign (Symbol): symbolic variable for cbf
-        G (NDArray): constraint matrix(=dh/dx). shape=(2,)
-        h (float): constraint value(=h(x))
+        theta: rotation angle (rad) from world to area coordinate
+        p: multiplier for p-norm
+        keep_inside: flag to prohibit going outside of the area
+        G: constraint matrix (=dh/dx). shape=(2,)
+        h: constraint value (=h(x))
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self, center: NDArray, width: NDArray, theta: float = 0.0, p: float = 2.0, keep_inside: bool = True
+    ) -> None:
         self.x = Matrix(symbols("x, y", real=True))  # type: ignore
         self.sign = Symbol("sign_", real=True)  # type: ignore
+        self.set_parameters(center, width, theta, p, keep_inside)
 
     def set_parameters(
         self, center: NDArray, width: NDArray, theta: float = 0.0, p: float = 2.0, keep_inside: bool = True
     ) -> None:
-        """Set parameters and auxiliary functions for constraint calculation"""
+        """Set parameters and rebuild symbolic functions."""
         self.center = center.flatten()
         self.width = width.flatten()
         self.theta = theta
@@ -277,66 +303,68 @@ class Pnorm2dCBF(CBFBase):
         self.p = p
         self.keep_inside = keep_inside
 
-        # applyfunc(lambda x: x**self.p): element-wise power
         cbf = self.sign * (1.0 - sum(abs(self.x.applyfunc(lambda x: x**self.p))) ** (1 / self.p))  # type: ignore
         self._calc_dhdx = lambdify([self.x, self.sign], cbf.diff(self.x))
         self._calc_h = lambdify([self.x, self.sign], cbf)
 
     def get_parameters(self) -> Tuple[NDArray, NDArray, float, float, bool]:
-        """
-        Returns:
-            Tuple[NDArray, NDArray, float, float, bool]: parameters
-        """
         return self.center, self.width, self.theta, self.p, self.keep_inside
 
     def calc_constraints(self, agent_position: NDArray) -> None:
         """
         Args:
-            agent_position (NDArray): agent position in world coordinate. shape=(2,)
+            agent_position: agent position in world coordinate. shape=(2,)
 
         Note:
-            division by width is a remnant of the transformation
+            Division by width is a remnant of the transformation.
         """
         agent_position_transformed = self._transform_agent_position(agent_position.flatten())
         sign = 1 if self.keep_inside else -1
-        rotation_matrix = self._get_rotation_matrix(self.theta)
 
         self.G = (
-            rotation_matrix @ self._calc_dhdx(agent_position_transformed, sign) / self.width.reshape(2, 1)
+            rotation_matrix_2d(self.theta) @ self._calc_dhdx(agent_position_transformed, sign)
+            / self.width.reshape(2, 1)
         ).flatten()
         assert self.G.shape == (2,)
         self.h = self._calc_h(agent_position_transformed, sign)
 
     def _transform_agent_position(self, agent_position: NDArray) -> NDArray:
-        """
+        """Transform agent position from world coordinate to normalized area coordinate.
+
         Args:
-            agent_position (NDArray): agent position in world coordinate. shape=(2,)
+            agent_position: agent position in world coordinate. shape=(2,)
 
         Returns:
-            (NDArray): transformed agent position within unit circle. shape=(2,)
+            Transformed agent position within unit shape. shape=(2,)
         """
-        rotation_matrix = self._get_rotation_matrix(-self.theta)
-        return cast(NDArray, rotation_matrix @ (agent_position - self.center) / self.width)
-
-    @staticmethod
-    def _get_rotation_matrix(rad: float) -> NDArray:
-        return np.array(
-            [
-                [np.cos(rad), -np.sin(rad)],
-                [np.sin(rad), np.cos(rad)],
-            ]
-        )
+        return cast(NDArray, rotation_matrix_2d(-self.theta) @ (agent_position - self.center) / self.width)
 
 
 class UnicyclePnorm2dCBF(Pnorm2dCBF):
-    def __init__(self) -> None:
+    """CBF for p-norm shaped area constraint with unicycle model.
+
+    Attributes:
+        center: center of area in world coordinate. shape=(2,)
+        width: half length of the major and minor axis of ellipse
+            that match the x and y axis in the area coordinate. shape=(2,)
+        theta: rotation angle (rad) from world to area coordinate
+        p: multiplier for p-norm
+        keep_inside: flag to prohibit going outside of the area
+        G: constraint matrix (=dh/dx). shape=(2,)
+        h: constraint value (=h(x))
+    """
+
+    def __init__(
+        self, center: NDArray, width: NDArray, theta: float = 0.0, p: float = 2.0, keep_inside: bool = True
+    ) -> None:
         self.x = Matrix(symbols("x, y, agent_theta", real=True))  # type: ignore
         self.sign = Symbol("sign_", real=True)  # type: ignore
+        self.set_parameters(center, width, theta, p, keep_inside)
 
     def set_parameters(
         self, center: NDArray, width: NDArray, theta: float = 0.0, p: float = 2.0, keep_inside: bool = True
     ) -> None:
-        """Set parameters and auxiliary functions for constraint calculation"""
+        """Set parameters and rebuild symbolic functions."""
         self.center = center.flatten()
         self.width = width.flatten()
         self.theta = theta
@@ -344,7 +372,6 @@ class UnicyclePnorm2dCBF(Pnorm2dCBF):
         self.p = p
         self.keep_inside = keep_inside
 
-        # applyfunc(lambda x: x**self.p): element-wise power
         cbf = self.sign * (
             1.0
             - sum(abs((np.hstack([np.eye(2), np.zeros([2, 1])]) @ self.x).applyfunc(lambda x: x**self.p)))
@@ -356,17 +383,15 @@ class UnicyclePnorm2dCBF(Pnorm2dCBF):
     def calc_constraints(self, agent_pose: NDArray) -> None:
         """
         Args:
-            agent_position (NDArray): agent position in world coordinate. shape=(2,)
+            agent_pose: agent pose in world coordinate. shape=(3,) [x, y, theta]
 
         Note:
-            division by radius is a remnant of the transformation
+            Division by width is a remnant of the transformation.
         """
         agent_pose_transformed = self._transform_agent_pose(agent_pose.flatten())
         sign = 1 if self.keep_inside else -1
-        rotation_matrix = self._get_rotation_matrix(self.theta)
 
         agent_theta = agent_pose[2]
-        # system matrix
         A = np.array(
             [
                 [np.cos(agent_theta), 0],
@@ -376,47 +401,47 @@ class UnicyclePnorm2dCBF(Pnorm2dCBF):
         )
         dhdx = self._calc_dhdx(agent_pose_transformed, sign)
         assert dhdx.shape == (3, 1), dhdx
-        # assert False, f"{rotation_matrix},\n {dhdx},\n {dhdx[0:2]}"
-        # assert (
-        #     False
-        # ), f"{np.vstack([rotation_matrix @ dhdx[0:2] / self.width.reshape(2, 1), dhdx[2]]).reshape(1, -1) @ A}"
         self.G = (
-            np.vstack([rotation_matrix @ dhdx[0:2] / self.width.reshape(2, 1), dhdx[2]]).reshape(1, -1) @ A
+            np.vstack([rotation_matrix_2d(self.theta) @ dhdx[0:2] / self.width.reshape(2, 1), dhdx[2]]).reshape(1, -1)
+            @ A
         ).flatten()
         assert self.G.shape == (2,)
         self.h = self._calc_h(agent_pose_transformed, sign)
 
     def _transform_agent_pose(self, agent_pose: NDArray) -> NDArray:
-        """
+        """Transform agent pose from world coordinate to normalized area coordinate.
+
         Args:
-            agent_pose (NDArray): agent pose in world coordinate. shape=(3,)
+            agent_pose: agent pose in world coordinate. shape=(3,)
 
         Returns:
-            (NDArray): transformed agent pose within unit circle. shape=(3,)
+            Transformed agent pose within unit shape. shape=(3,)
         """
-        rotation_matrix = self._get_rotation_matrix(-self.theta)
         agent_position = agent_pose[0:2]
-        return cast(NDArray, np.append(rotation_matrix @ (agent_position - self.center) / self.width, agent_pose[2]))
+        return cast(
+            NDArray,
+            np.append(rotation_matrix_2d(-self.theta) @ (agent_position - self.center) / self.width, agent_pose[2]),
+        )
 
 
 class LiDARCBF(CBFBase):
-    """
+    """CBF for LiDAR-based obstacle avoidance.
+
     Attributes:
-        width (NDArray): half length of the major and minor axis of ellipse
+        width: half length of the major and minor axis of ellipse
             that match the x and y axis in the agent coordinate. shape=(2,)
-        keep_upper (bool): flag to prohibit going lower of the limit. Defaults to True.
-        r: state variable in symbolic form for cbf
-        theta: state variable in symbolic form for cbf
-        G (NDArray): constraint matrix(=dh/dx). shape=(2,)
-        h (float): constraint value(=h(x))
+        keep_upper: flag to prohibit going lower of the limit
+        G: constraint matrix (=dh/dx). shape=(2,)
+        h: constraint value (=h(x))
     """
 
-    def __init__(self) -> None:
+    def __init__(self, width: NDArray, keep_upper: bool = True) -> None:
         self.r = Symbol("r", real=True)  # type: ignore
         self.theta = Symbol("theta", real=True)  # type: ignore
+        self.set_parameters(width, keep_upper)
 
     def set_parameters(self, width: NDArray, keep_upper: bool = True) -> None:
-        """Set parameters and auxiliary functions for constraint calculation"""
+        """Set parameters and rebuild symbolic functions."""
         self.width = width.flatten()
         self.keep_upper = keep_upper
 

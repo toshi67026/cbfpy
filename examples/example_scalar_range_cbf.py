@@ -12,14 +12,10 @@ from cbfpy.cbf_qp_solver import CBFNomQPSolver
 
 
 class CBFOptimizer:
-    def __init__(self) -> None:
+    def __init__(self, a: float, b: float, keep_inside: bool = True) -> None:
         self.qp_nom_solver = CBFNomQPSolver()
         self.P = np.eye(1)
-
-        self.scalar_range_cbf = ScalarRangeCBF()
-
-        # initialize (must be overwritten)
-        self.set_parameters(0.0, 1.0)
+        self.scalar_range_cbf = ScalarRangeCBF(a, b, keep_inside)
 
     def set_parameters(self, a: float, b: float, keep_inside: bool = True) -> None:
         self.scalar_range_cbf.set_parameters(a, b, keep_inside)
@@ -27,25 +23,14 @@ class CBFOptimizer:
     def get_parameters(self) -> Tuple[float, float, bool]:
         return self.scalar_range_cbf.get_parameters()
 
-    def _calc_constraints(self, curr_value: float) -> None:
-        self.scalar_range_cbf.calc_constraints(curr_value)
-
-    def _get_constraints(self) -> Tuple[List[NDArray], List[float]]:
-        G, alpha_h = self.scalar_range_cbf.get_constraints()
-        return [G], [alpha_h]
-
     def optimize(self, nominal_input: float, curr_value: float) -> Tuple[str, NDArray]:
-        self._calc_constraints(curr_value)
-        G_list, alpha_h_list = self._get_constraints()
-
-        try:
-            return self.qp_nom_solver.optimize(np.array(nominal_input), self.P, G_list, alpha_h_list)
-        except Exception as e:
-            raise e
+        self.scalar_range_cbf.calc_constraints(curr_value)
+        G, alpha_h = self.scalar_range_cbf.get_constraints()
+        return self.qp_nom_solver.optimize(np.array(nominal_input), self.P, [G], [alpha_h])
 
 
 def main() -> None:
-    optimizer = CBFOptimizer()
+    optimizer = CBFOptimizer(a=0.0, b=1.0)
 
     initial_value = 0.0
     value_list: List[float] = [initial_value]

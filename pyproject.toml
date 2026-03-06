@@ -59,7 +59,7 @@ addopts = "--cov=cbfpy --cov-branch --cov-report=xml --cov-report=html:cov_html"
 
 [tool.sphinx-pyproject]
 project = "cbfpy"
-copyright = "2022, Toshiyuki Oshima"
+copyright = "2026, Toshiyuki Oshima"
 language = "en"
 package_root = "cbfpy"
 html_theme = "sphinx_rtd_theme"

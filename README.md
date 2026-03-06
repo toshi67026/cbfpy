@@ -25,14 +25,13 @@ pip install -e ".[dev,test]"
 python examples/example_{cbf name}.py
 ```
 
-## Document
-Generate document from docstring.
+## Documentation
+Build API docs and examples page from docstrings.
 ```sh
-sphinx-apidoc -F -o docs/source cbfpy && sphinx-build docs/source docs/build
+sphinx-build docs/source docs/build
 ```
 
-Browse generated document by opening the html files in docs/build/ from your browser.
-<img src=assets/sphinx_cbfpy.png>
+Browse generated documentation by opening `docs/build/index.html` in your browser.
 
 ## Tools
 ### Format & Lint

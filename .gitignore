@@ -14,7 +14,10 @@ dist/
 coverage.xml
 cov_html/
 
-# docs (auto-generated)
-/docs/source/*
-/docs/build/*
-!/docs/source/conf.py
+# docs
+/docs/build/
+/docs/source/_build/
+/docs/source/_static/
+/docs/source/_templates/
+/docs/source/Makefile
+/docs/source/make.bat

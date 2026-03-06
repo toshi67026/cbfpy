@@ -1,13 +1,21 @@
-*__pycache__
+__pycache__/
 *.pyc
-.mypy_cache
-.pytest_cache
-/docs/source/*
-/docs/build/*
-!/docs/source/conf.py
+*.egg-info/
+dist/
+.venv/
+
+# type checker / linter
+.mypy_cache/
+.ruff_cache/
+
+# test
+.pytest_cache/
 .coverage
 coverage.xml
-cov_html
-.ruff_cache
-.venv
-dist
+cov_html/
+
+# docs
+/docs/build/
+/docs/source/_build/
+/docs/source/Makefile
+/docs/source/make.bat

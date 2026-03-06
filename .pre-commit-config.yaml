@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v5.0.0
     hooks:
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
@@ -8,19 +8,12 @@ repos:
       - id: mixed-line-ending
         args: [--fix=lf]
       - id: check-added-large-files
-        args: ["--maxkb=10000"] # 10MB
+        args: ["--maxkb=10000"]
       - id: check-toml
       - id: check-yaml
-  - repo: https://github.com/pycqa/isort
-    rev: 5.11.4
-    hooks:
-      - id: isort
-  - repo: https://github.com/psf/black
-    rev: 22.12.0
-    hooks:
-      - id: black
-        language_version: python3
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: "v0.0.221"
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.10
     hooks:
       - id: ruff
+        args: [--fix]
+      - id: ruff-format

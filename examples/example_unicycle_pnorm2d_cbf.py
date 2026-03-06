@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from typing import List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,59 +12,45 @@ from cbfpy.cbf_qp_solver import CBFNomQPSolver
 
 
 class CBFOptimizer:
-    def __init__(self) -> None:
+    def __init__(
+        self, center: NDArray, width: NDArray, theta: float = 0.0, p: float = 2.0, keep_inside: bool = True
+    ) -> None:
         self.qp_nom_solver = CBFNomQPSolver()
         self.P = np.diag([1, 10])
-
-        self.pnorm2d_cbf = UnicyclePnorm2dCBF()
-
-        # initialize(must be overwritten)
-        self.set_parameters(np.zeros(2), np.ones(2))
+        self.pnorm2d_cbf = UnicyclePnorm2dCBF(center, width, theta, p, keep_inside)
 
     def set_parameters(
         self, center: NDArray, width: NDArray, theta: float = 0.0, p: float = 2.0, keep_inside: bool = True
     ) -> None:
         self.pnorm2d_cbf.set_parameters(center, width, theta, p, keep_inside)
 
-    def get_parameters(self) -> Tuple[NDArray, NDArray, float, float, bool]:
+    def get_parameters(self) -> tuple[NDArray, NDArray, float, float, bool]:
         return self.pnorm2d_cbf.get_parameters()
 
-    def _calc_constraints(self, agent_pose: NDArray) -> None:
+    def optimize(self, nominal_input: NDArray, agent_pose: NDArray) -> tuple[str, NDArray]:
         self.pnorm2d_cbf.calc_constraints(agent_pose)
-
-    def _get_constraints(self) -> Tuple[List[NDArray], List[float]]:
         G, alpha_h = self.pnorm2d_cbf.get_constraints()
-        return [G], [alpha_h]
-
-    def optimize(self, nominal_input: NDArray, agent_pose: NDArray) -> Tuple[str, NDArray]:
-        self._calc_constraints(agent_pose)
-        G_list, alpha_h_list = self._get_constraints()
-
-        try:
-            return self.qp_nom_solver.optimize(nominal_input, self.P, G_list, alpha_h_list)
-        except Exception as e:
-            raise e
+        return self.qp_nom_solver.optimize(nominal_input, self.P, [G], [alpha_h])
 
 
 def main() -> None:
-    optimizer = CBFOptimizer()
-
-    initial_pose_array = np.array([-1, -1, 0])
-    agent_pose_list: List[NDArray] = [initial_pose_array]
-    dt = 0.1
     center = np.array([-0.5, 0.5])
     width = np.array([3, 2])
     theta = -0.3
     p = 2.0
     keep_inside = True
 
-    optimizer.set_parameters(center, width, theta, p, keep_inside)
+    optimizer = CBFOptimizer(center, width, theta, p, keep_inside)
+
+    initial_pose_array = np.array([-1, -1, 0])
+    agent_pose_list: list[NDArray] = [initial_pose_array]
+    dt = 0.1
 
     fig, ax = plt.subplots()
 
     def update(
         frame: int,
-        agent_pose_list: List[NDArray],
+        agent_pose_list: list[NDArray],
     ) -> None:
         ax.cla()
 
@@ -151,7 +136,7 @@ def main() -> None:
         ax.set_xlim(lim)
         ax.set_ylim(lim)
 
-    ani = FuncAnimation(
+    ani = FuncAnimation(  # noqa: F841
         fig,
         update,
         frames=200,

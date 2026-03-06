@@ -1,19 +1,19 @@
 # cbfpy
 Python package for using simple control barrier function.
 
+[**Documentation**](https://toshi67026.github.io/cbfpy/)
+
 ## Requirements
-- poetry 1.3.1
+- Python >= 3.10
 
 ## Installation
-Create virtualenv and install dependencies defined for the project.
 ```sh
-poetry install
+pip install -e .
 ```
 
-Build and install locally with pip.
+With dev/test dependencies:
 ```sh
-poetry build
-python -m pip install cbfpy --find-links=dist
+pip install -e ".[dev,test]"
 ```
 
 ## Examples
@@ -24,49 +24,37 @@ python -m pip install cbfpy --find-links=dist
 
 ### Usage
 ```sh
-poetry run python examples/example_{cbf name}.py
+python examples/example_{cbf name}.py
 ```
 
-## Document
-Generate document from docstring.
+## Documentation
+Documentation is automatically published to [GitHub Pages](https://toshi67026.github.io/cbfpy/) on push to main.
+
+To build locally:
 ```sh
-poetry run task docs
+pip install -e ".[dev]"
+sphinx-build docs/source docs/build
 ```
-
-Browse generated document by opening the html files in docs/build/ from your browser.
-<img src=assets/sphinx_cbfpy.png>
+Then open `docs/build/index.html`.
 
 ## Tools
-### Format
-- isort
-- black
+### Format & Lint
+- [ruff](https://docs.astral.sh/ruff/) (format + lint + import sort)
+- [mypy](https://mypy-lang.org/) (type check)
 ```sh
-poetry run task fmt
-```
-
-### Lint
-- black
-- ruff
-- mypy
-```sh
-poetry run task lint
+ruff format .
+ruff check --fix .
+mypy .
 ```
 
 ### Test
-- pytest
-- pytest-cov
 ```sh
-poetry run task test
+pytest
 ```
 The vscode extension [coverage-gutters](https://marketplace.visualstudio.com/items?itemName=ryanluker.vscode-coverage-gutters) can be used to display the test coverage.
 
 ### pre-commit
 Apply [config file](.pre-commit-config.yaml) for pre-commit.
 ```sh
-poetry run pre-commit install
-```
-
-### Export requirements.txt
-```sh
-poetry export -f requirements.txt --output requirements.txt --without-hashes
+pre-commit install
 ```

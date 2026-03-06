@@ -6,68 +6,75 @@ on:
       - main
     paths:
       - "cbfpy/**.py"
+      - "docs/**"
       - "examples/**.py"
       - "tests/**.py"
-      - "poetry.lock"
+      - "pyproject.toml"
       - ".github/workflows/pr-check.yml"
 
 env:
-  PYTHON_VERSION: 3.8
+  PYTHON_VERSION: "3.10"
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Cache Poetry cache
-        uses: actions/cache@v3
-        id: poetry_cache
-        with:
-          path: ~/.cache/pypoetry
-          key: poetry-cache-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[test]"
 
-      - name: Cache Packages
-        uses: actions/cache@v3
-        id: package_cache
-        with:
-          path: ~/.local
-          key: poetry-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
-
-      - name: Install Poetry
-        run: curl -sSL https://install.python-poetry.org | python3 -
-
-      - name: Install Dependencies
-        if: steps.poetry_cache.outputs.cache-hit != 'true' && steps.package_cache.outputs.cache-hit != 'true'
-        run: poetry install
-
-      - name: Python Test
-        run: poetry run task test
+      - name: Run tests
+        run: python -m pytest
 
   lint:
     runs-on: ubuntu-latest
-    needs: [test]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Cache Poetry cache
-        uses: actions/cache@v3
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
         with:
-          path: ~/.cache/pypoetry
-          key: poetry-cache-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
+          python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Cache Packages
-        uses: actions/cache@v3
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[dev]"
+
+      - name: Ruff check
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: Mypy
+        run: mypy .
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
         with:
-          path: ~/.local
-          key: poetry-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
+          python-version: ${{ env.PYTHON_VERSION }}
 
-      - name: Python Lint
-        run: poetry run task lint
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ".[dev]"
+
+      - name: Build docs
+        run: sphinx-build -W docs/source docs/build

@@ -1,6 +1,8 @@
 # cbfpy
 Python package for using simple control barrier function.
 
+[**Documentation**](https://toshi67026.github.io/cbfpy/)
+
 ## Requirements
 - Python >= 3.10
 
@@ -26,12 +28,14 @@ python examples/example_{cbf name}.py
 ```
 
 ## Documentation
-Build API docs and examples page from docstrings.
+Documentation is automatically published to [GitHub Pages](https://toshi67026.github.io/cbfpy/) on push to main.
+
+To build locally:
 ```sh
+pip install -e ".[dev]"
 sphinx-build docs/source docs/build
 ```
-
-Browse generated documentation by opening `docs/build/index.html` in your browser.
+Then open `docs/build/index.html`.
 
 ## Tools
 ### Format & Lint

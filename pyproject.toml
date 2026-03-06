@@ -64,8 +64,6 @@ language = "en"
 package_root = "cbfpy"
 html_theme = "sphinx_rtd_theme"
 todo_include_todos = true
-templates_path = ["_templates"]
-html_static_path = ["_static"]
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.viewcode",

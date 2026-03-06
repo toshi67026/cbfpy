@@ -17,7 +17,5 @@ cov_html/
 # docs
 /docs/build/
 /docs/source/_build/
-/docs/source/_static/
-/docs/source/_templates/
 /docs/source/Makefile
 /docs/source/make.bat

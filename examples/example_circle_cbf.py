@@ -8,29 +8,12 @@ from matplotlib.animation import FuncAnimation
 from numpy.typing import NDArray
 
 from cbfpy.cbf import CircleCBF
-from cbfpy.cbf_qp_solver import CBFNomQPSolver
-
-
-class CBFOptimizer:
-    def __init__(self, center: NDArray, radius: float = 1.0, keep_inside: bool = True) -> None:
-        self.qp_nom_solver = CBFNomQPSolver()
-        self.P = np.eye(2)
-        self.circle_cbf = CircleCBF(center, radius, keep_inside)
-
-    def set_parameters(self, center: NDArray, radius: float = 1.0, keep_inside: bool = True) -> None:
-        self.circle_cbf.set_parameters(center, radius, keep_inside)
-
-    def get_parameters(self) -> tuple[NDArray, float, bool]:
-        return self.circle_cbf.get_parameters()
-
-    def optimize(self, nominal_input: NDArray, agent_position: NDArray) -> tuple[str, NDArray]:
-        self.circle_cbf.calc_constraints(agent_position)
-        G, alpha_h = self.circle_cbf.get_constraints()
-        return self.qp_nom_solver.optimize(nominal_input, self.P, [G], [alpha_h])
+from cbfpy.cbf_controller import CBFController
 
 
 def main() -> None:
-    optimizer_list = [CBFOptimizer(np.zeros(2)), CBFOptimizer(np.zeros(2))]
+    cbf_list = [CircleCBF(np.zeros(2), 1.0, keep_inside=False), CircleCBF(np.zeros(2), 1.0, keep_inside=False)]
+    controller_list = [CBFController([cbf], P=np.eye(2)) for cbf in cbf_list]
 
     initial_position_array = np.array([[-2, -2.5], [2, 2]])
     agent_position_list: list[NDArray] = [initial_position_array]
@@ -53,10 +36,11 @@ def main() -> None:
 
             keep_inside = False
 
-            optimizer_list[agent_id].set_parameters(another_agent_position, 2 * radius, keep_inside)
+            cbf_list[agent_id].set_parameters(another_agent_position, 2 * radius, keep_inside)
             nominal_input = np.array([-2 * agent_id + 1] * 2)
             curr_position = curr_position_array[agent_id]
-            _, optimal_input = optimizer_list[agent_id].optimize(nominal_input, curr_position)
+            cbf_list[agent_id].calc_constraints(curr_position)
+            _, optimal_input = controller_list[agent_id].optimize(nominal_input)
 
             curr_position_array[agent_id] = curr_position_array[agent_id] + dt * optimal_input
 

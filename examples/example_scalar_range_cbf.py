@@ -4,32 +4,14 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.animation import FuncAnimation
-from numpy.typing import NDArray
 
 from cbfpy.cbf import ScalarRangeCBF
-from cbfpy.cbf_qp_solver import CBFNomQPSolver
-
-
-class CBFOptimizer:
-    def __init__(self, a: float, b: float, keep_inside: bool = True) -> None:
-        self.qp_nom_solver = CBFNomQPSolver()
-        self.P = np.eye(1)
-        self.scalar_range_cbf = ScalarRangeCBF(a, b, keep_inside)
-
-    def set_parameters(self, a: float, b: float, keep_inside: bool = True) -> None:
-        self.scalar_range_cbf.set_parameters(a, b, keep_inside)
-
-    def get_parameters(self) -> tuple[float, float, bool]:
-        return self.scalar_range_cbf.get_parameters()
-
-    def optimize(self, nominal_input: float, curr_value: float) -> tuple[str, NDArray]:
-        self.scalar_range_cbf.calc_constraints(curr_value)
-        G, alpha_h = self.scalar_range_cbf.get_constraints()
-        return self.qp_nom_solver.optimize(np.array(nominal_input), self.P, [G], [alpha_h])
+from cbfpy.cbf_controller import CBFController
 
 
 def main() -> None:
-    optimizer = CBFOptimizer(a=0.0, b=1.0)
+    cbf = ScalarRangeCBF(a=0.0, b=1.0)
+    controller = CBFController([cbf], P=np.eye(1))
 
     initial_value = 0.0
     value_list: list[float] = [initial_value]
@@ -62,9 +44,10 @@ def main() -> None:
             nominal_input = -1.0
             keep_inside = True
 
-        optimizer.set_parameters(a, b, keep_inside)
+        cbf.set_parameters(a, b, keep_inside)
         curr_value = value_list[-1]
-        _, optimal_input = optimizer.optimize(nominal_input, curr_value)
+        cbf.calc_constraints(curr_value)
+        _, optimal_input = controller.optimize(np.array(nominal_input))
         value_list.append(curr_value + float(optimal_input) * dt)
         time_list.append(curr_time + dt)
 

@@ -8,29 +8,7 @@ from matplotlib.animation import FuncAnimation
 from numpy.typing import NDArray
 
 from cbfpy.cbf import Pnorm2dCBF
-from cbfpy.cbf_qp_solver import CBFNomQPSolver
-
-
-class CBFOptimizer:
-    def __init__(
-        self, center: NDArray, width: NDArray, theta: float = 0.0, p: float = 2.0, keep_inside: bool = True
-    ) -> None:
-        self.qp_nom_solver = CBFNomQPSolver()
-        self.P = np.eye(2)
-        self.pnorm2d_cbf = Pnorm2dCBF(center, width, theta, p, keep_inside)
-
-    def set_parameters(
-        self, center: NDArray, width: NDArray, theta: float = 0.0, p: float = 2.0, keep_inside: bool = True
-    ) -> None:
-        self.pnorm2d_cbf.set_parameters(center, width, theta, p, keep_inside)
-
-    def get_parameters(self) -> tuple[NDArray, NDArray, float, float, bool]:
-        return self.pnorm2d_cbf.get_parameters()
-
-    def optimize(self, nominal_input: NDArray, agent_position: NDArray) -> tuple[str, NDArray]:
-        self.pnorm2d_cbf.calc_constraints(agent_position)
-        G, alpha_h = self.pnorm2d_cbf.get_constraints()
-        return self.qp_nom_solver.optimize(nominal_input, self.P, [G], [alpha_h])
+from cbfpy.cbf_controller import CBFController
 
 
 def main() -> None:
@@ -41,7 +19,8 @@ def main() -> None:
     p = 2.0
     keep_inside = False
 
-    optimizer = CBFOptimizer(center, width, theta, p, keep_inside)
+    cbf = Pnorm2dCBF(center, width, theta, p, keep_inside)
+    controller = CBFController([cbf], P=np.eye(2))
 
     initial_position = np.array([-3, -2.5])
     agent_position_list: list[NDArray] = [initial_position]
@@ -57,7 +36,8 @@ def main() -> None:
         ax.cla()
 
         curr_position = agent_position_list[-1]
-        _, optimal_input = optimizer.optimize(nominal_input, curr_position)
+        cbf.calc_constraints(curr_position)
+        _, optimal_input = controller.optimize(nominal_input)
         agent_position_list.append(curr_position + dt * optimal_input)
 
         # show area

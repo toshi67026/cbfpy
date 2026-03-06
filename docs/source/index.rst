@@ -20,6 +20,7 @@ Features
 - Multiple CBF types: scalar, circular, p-norm, unicycle, LiDAR-based
 - Lightweight QP solver via `quadprog <https://pypi.org/project/quadprog/>`_ (Goldfarb/Idnani algorithm)
 - Runtime parameter reconfiguration via ``set_parameters()``
+- :class:`~cbfpy.cbf_controller.CBFController` for easy multi-CBF composition
 
 Quick Start
 -----------
@@ -41,10 +42,23 @@ Quick Start
    nominal_input = np.array([1.0, 0.0])  # desired direction
    status, safe_input = solver.optimize(nominal_input, np.eye(2), [G], [alpha_h])
 
+Or using :class:`~cbfpy.cbf_controller.CBFController` for a simpler API:
+
+.. code-block:: python
+
+   from cbfpy import CBFController, CircleCBF
+
+   cbf = CircleCBF(center=np.zeros(2), radius=2.0, keep_inside=True)
+   controller = CBFController([cbf], P=np.eye(2))
+
+   cbf.calc_constraints(agent_position=np.array([1.5, 0.0]))
+   status, safe_input = controller.optimize(nominal_input=np.array([1.0, 0.0]))
+
 
 .. toctree::
    :maxdepth: 4
    :caption: Contents:
 
+   theory
    cbfpy
    examples
